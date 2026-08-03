@@ -1,6 +1,6 @@
 <div align="center">
 
-![RescueLinkAI Banner](public/main_logo.jpg)
+<img src="public/main_logo.jpg" alt="RescueLinkAI" width="120" style="border-radius:12px" />
 
 # RescueLink AI
 
