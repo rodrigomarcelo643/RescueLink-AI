@@ -3,16 +3,34 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "imports": {
+    "@/*": "./src/*"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:widget": "tsc -b && vite build --mode widget",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
+    "@googlemaps/markerclusterer": "^2.6.2",
+    "@reduxjs/toolkit": "^2.12.0",
+    "@supabase/supabase-js": "^2.111.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@vis.gl/react-google-maps": "^1.9.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-redux": "^9.3.0",
+    "react-router-dom": "^7.18.2",
+    "recharts": "^3.10.1",
+    "supabase": "^2.111.0",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
