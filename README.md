@@ -9,31 +9,68 @@
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite)](https://vitejs.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT-412991?style=flat-square&logo=openai)](https://openai.com)
 [![License](https://img.shields.io/badge/License-MIT-red?style=flat-square)](LICENSE)
 
-**AI-powered rescue and relief coordination platform for LGUs in the Philippines.**  
-Real-time incident monitoring, multi-channel reporting, volunteer dispatch, and public transparency — all in one dashboard.
+**An AI-Powered Disaster Response, Relief Coordination, and Public Information Platform**
+
+*Built for Local Government Units and NGOs in the Philippines*
 
 </div>
 
 ---
 
-## What is RescueLink AI?
+## The Problem
 
-RescueLink AI is a disaster response coordination platform built for Local Government Units (LGUs). It aggregates rescue reports from multiple channels — Facebook Messenger, Telegram, WhatsApp, and web — uses AI to extract and prioritize incidents, and gives responders a live dashboard to coordinate relief operations.
+During disasters, communication becomes fragmented. Citizens struggle to report emergencies, local governments receive duplicate or incomplete reports, donations are difficult to coordinate, and the public often lacks verified information. This delays rescue operations and slows relief distribution.
 
-### Key Features
+Existing tools are siloed — rescue teams use radio, citizens post on Facebook, donations come through bank transfers, and LGU dashboards are updated manually. There is no single system that connects all of these.
 
-- **Multi-channel Intake** — Citizens report via Facebook Messenger, Telegram, WhatsApp, or the embedded web widget
-- **AI Extraction** — OpenAI automatically extracts disaster type, location, severity, and people affected from raw messages
-- **Real-time Dashboard** — Live KPI cards, area/bar/pie charts, incident trend graphs, and a live activity feed
-- **Monitoring Map** — Google Maps with real-time clustered incident markers colored by severity
-- **Facebook Monitoring** — Sync FB page posts, flag AI-detected emergencies, and reply via Messenger DMs
-- **Volunteer Management** — Track availability, skills, and equipment; auto-match volunteers to incidents
-- **Donations** — Accept and track monetary and in-kind donations via PayMongo
-- **Public Dashboard** — Geo-filtered public view with location detection and radius selector
-- **Embeddable Widget** — Drop-in chat bubble for any barangay website
-- **Role-based Access** — LGU, NGO, volunteer, and citizen roles (LGU fully implemented)
+---
+
+## The Solution
+
+**RescueLink AI** centralizes disaster reporting, AI-assisted emergency response, humanitarian aid coordination, and public communication through familiar platforms like Facebook Messenger.
+
+Instead of replacing existing communication channels, RescueLink AI **integrates with Facebook Messenger, Telegram, WhatsApp, and a web dashboard** — meeting citizens where they already are.
+
+AI automates report classification, prioritization, donation matching, and public information dissemination while providing a real-time command dashboard for LGUs and NGOs.
+
+---
+
+## How It Works
+
+```
+Citizen reports via Messenger / Telegram / WhatsApp / Web
+        ↓
+AI extracts: disaster type · location · severity · people affected
+        ↓
+Incident ticket created → LGU dashboard notified in real-time
+        ↓
+Volunteers matched → Rescue team dispatched
+        ↓
+Citizen receives SMS/email status update
+        ↓
+Public dashboard updated → Community stays informed
+```
+
+---
+
+## Key Features
+
+| Feature | Description |
+|---|---|
+| **Multi-channel Intake** | Citizens report via Facebook Messenger, Telegram, WhatsApp, or the embedded web widget |
+| **AI Extraction** | OpenAI extracts disaster type, location, severity, and people affected from raw messages |
+| **Real-time Dashboard** | Live KPI cards, area/bar/pie charts, incident trend graphs, and a live activity feed |
+| **Monitoring Map** | Google Maps with real-time clustered incident markers colored by severity |
+| **Facebook Monitoring** | Sync FB page posts, flag AI-detected emergencies, reply via Messenger DMs |
+| **Volunteer Management** | Track availability, skills, and equipment; auto-match volunteers to incidents |
+| **Donations** | Accept and track monetary and in-kind donations via PayMongo |
+| **Public Dashboard** | Geo-filtered public view with location detection and radius selector |
+| **Embeddable Widget** | Drop-in chat bubble for any barangay website |
+| **Role-based Access** | LGU, NGO, volunteer, and citizen roles |
+| **SMS / Email Alerts** | Automated status updates to reporters via Semaphore and Resend |
 
 ---
 
@@ -175,7 +212,7 @@ See `.env.example` for the full list.
    ```
    https://<project-ref>.supabase.co/auth/v1/callback
    ```
-4. The login page will open Facebook auth in a centered popup window automatically.
+4. The login page opens Facebook auth in a centered popup window automatically.
 
 ---
 
