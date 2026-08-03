@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RescueLink Widget Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      background: #f9fafb;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .demo {
+      max-width: 560px;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .demo h1 { font-size: 22px; font-weight: 800; color: #111827; margin-bottom: 8px; }
+    .demo p  { font-size: 14px; color: #6b7280; line-height: 1.6; }
+    .badge {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 6px 14px;
+      background: #fef2f2;
+      color: #b91c1c;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid #fecaca;
+    }
+    pre {
+      margin-top: 28px;
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      font-size: 12px;
+      text-align: left;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo">
+    <h1>🚨 RescueLink AI Widget</h1>
+    <p>The chat widget is loaded in the bottom-right corner.<br/>Click the blue bubble to open it.</p>
+    <span class="badge">Messenger · Supabase · AI Powered</span>
+
+    <pre>&lt;!-- Embed on any website --&gt;
+&lt;script
+  src="https://your-cdn.com/widget.iife.js"
+  data-supabase-url="https://xxx.supabase.co"
+  data-supabase-anon-key="your-anon-key"
+  data-title="RescueLink AI"
+  data-subtitle="Emergency Reporting"
+  data-primary-color="#1877f2"
+  data-logo-url="/logo.jpg"
+&gt;&lt;/script&gt;</pre>
+  </div>
+
+  <!--
+    Widget embed — replace with your actual values.
+    In dev, load from dist-widget/widget.iife.js after running: pnpm build:widget
+  -->
+  <script>
+    // Manual init for demo (no script data-attributes needed)
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.RescueLinkWidget) {
+        window.RescueLinkWidget.init({
+          supabaseUrl:import.meta.env.supabaseUrl,
+          supabaseAnonKey: import.meta.env.supabaseAnonKey,
+          title: 'RescueLink AI',
+          subtitle: 'Emergency Reporting · Always available',
+          primaryColor: '#1877f2',
+        })
+      }
+    })
+  </script>
+  <script src="../dist-widget/widget.iife.js"></script>
+</body>
+</html>
