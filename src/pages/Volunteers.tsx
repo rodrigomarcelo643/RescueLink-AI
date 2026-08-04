@@ -1,18 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useVolunteers } from '@/hooks/useVolunteers'
 import VolunteerCard from '@/components/volunteers/VolunteerCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
+import Pagination from '@/components/shared/Pagination'
 import { addVolunteerDirect } from '@/services/volunteers.service'
 import { Users, UserCheck, Plus, X } from 'lucide-react'
 
 const SKILL_OPTIONS = ['First Aid', 'Search & Rescue', 'Driving', 'Medical', 'Communication', 'Logistics', 'Swimming', 'Firefighting']
+const PER_PAGE = 10
 
 export default function Volunteers() {
   const { items, loading, refresh } = useVolunteers()
   const available = items.filter((v) => v.is_available).length
 
   const [open, setOpen] = useState(false)
+  const [page, setPage] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ full_name: '', phone: '', barangay: '', skills: [] as string[] })
@@ -41,6 +44,10 @@ export default function Volunteers() {
       setSaving(false)
     }
   }
+
+  useEffect(() => { setPage(1) }, [items.length])
+  const totalPages = Math.max(1, Math.ceil(items.length / PER_PAGE))
+  const paginated = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   if (loading) return <LoadingSpinner />
 
@@ -78,9 +85,12 @@ export default function Volunteers() {
       {items.length === 0 ? (
         <EmptyState title="No volunteers registered" description="Add volunteers manually or wait for sign-ups." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((v) => <VolunteerCard key={v.id} volunteer={v} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {paginated.map((v) => <VolunteerCard key={v.id} volunteer={v} />)}
+          </div>
+          <Pagination page={page} totalPages={totalPages} total={items.length} onPage={setPage} />
+        </>
       )}
 
       {/* Add Volunteer Modal */}
