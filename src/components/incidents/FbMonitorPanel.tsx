@@ -7,6 +7,9 @@ import { useModal } from '@/context/ModalContext'
 import type { MessengerConversation } from '@/hooks/useMessengerTickets'
 import MessengerThread from './MessengerThread'
 import type { FbPost } from '@/types/fbPost'
+import Pagination from '@/components/shared/Pagination'
+
+const PER_PAGE = 10
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',
@@ -57,6 +60,8 @@ export default function FbMonitorPanel() {
   const { openModal } = useModal()
   const [converting, setConverting] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'flagged' | 'converted' | 'messenger'>('all')
+  const [page, setPage] = useState(1)
+  const [dmPage, setDmPage] = useState(1)
 
   const loading = postsLoading || ticketsLoading
 
@@ -65,6 +70,12 @@ export default function FbMonitorPanel() {
     if (filter === 'converted') return p.converted_to_ticket
     return true
   })
+
+  const totalPostPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
+  const paginatedPosts = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+
+  const totalDmPages = Math.max(1, Math.ceil(conversations.length / PER_PAGE))
+  const paginatedDms = conversations.slice((dmPage - 1) * PER_PAGE, dmPage * PER_PAGE)
 
   const flaggedCount = posts.filter((p) => p.ai_flagged && !p.converted_to_ticket).length
 
@@ -112,7 +123,7 @@ export default function FbMonitorPanel() {
           {(['all', 'flagged', 'converted', 'messenger'] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => { setFilter(f); setPage(1); setDmPage(1) }}
               className="px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors"
               style={{
                 borderRadius: 5,
@@ -142,7 +153,10 @@ export default function FbMonitorPanel() {
               <p className="text-[11px] text-gray-400">Messages sent to your FB page will appear here</p>
             </div>
           ) : (
-            conversations.map((c) => <ConversationCard key={c.sender_id} convo={c} />)
+            <>
+              {paginatedDms.map((c) => <ConversationCard key={c.sender_id} convo={c} />)}
+              <Pagination page={dmPage} totalPages={totalDmPages} total={conversations.length} onPage={setDmPage} />
+            </>
           )}
         </div>
       )}
@@ -169,109 +183,107 @@ export default function FbMonitorPanel() {
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {filtered.map((post) => {
-            const badge = post.severity ? SEVERITY_BADGE[post.severity] : null
-            return (
-              <div
-                key={post.id}
-                className="flex flex-col gap-2.5 bg-white p-4"
-                style={{
-                  border: `1px solid ${post.ai_flagged && !post.converted_to_ticket ? '#fecaca' : '#e5e7eb'}`,
-                  borderRadius: 5,
-                  background: post.ai_flagged && !post.converted_to_ticket ? '#fffafa' : '#fff',
-                }}
-              >
-                {/* Top row */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-6 items-center justify-center rounded-full" style={{ background: '#1877f2' }}>
-                      <svg viewBox="0 0 24 24" fill="white" width="11" height="11">
-                        <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
-                      </svg>
+        <>
+          <div className="flex flex-col gap-2">
+            {paginatedPosts.map((post) => {
+              const badge = post.severity ? SEVERITY_BADGE[post.severity] : null
+              return (
+                <div
+                  key={post.id}
+                  className="flex flex-col gap-2.5 bg-white p-4"
+                  style={{
+                    border: `1px solid ${post.ai_flagged && !post.converted_to_ticket ? '#fecaca' : '#e5e7eb'}`,
+                    borderRadius: 5,
+                    background: post.ai_flagged && !post.converted_to_ticket ? '#fffafa' : '#fff',
+                  }}
+                >
+                  {/* Top row */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-6 items-center justify-center rounded-full" style={{ background: '#1877f2' }}>
+                        <svg viewBox="0 0 24 24" fill="white" width="11" height="11">
+                          <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+                        </svg>
+                      </div>
+                      <span className="text-[12px] font-extrabold text-gray-900">{post.page_name}</span>
+                      <span className="text-[11px] text-gray-400">{timeAgo(post.posted_at)}</span>
                     </div>
-                    <span className="text-[12px] font-extrabold text-gray-900">{post.page_name}</span>
-                    <span className="text-[11px] text-gray-400">{timeAgo(post.posted_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {post.severity && badge && (
-                      <span
-                        className="px-2 py-0.5 text-[10px] font-extrabold capitalize"
-                        style={{ borderRadius: 4, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
-                      >
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {post.severity && badge && (
                         <span
-                          className="mr-1 inline-block size-1.5 rounded-full"
-                          style={{ background: SEVERITY_DOT[post.severity], verticalAlign: 'middle' }}
-                        />
-                        {post.severity}
-                      </span>
-                    )}
-                    {post.ai_flagged && !post.converted_to_ticket && (
-                      <span
-                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold"
-                        style={{ borderRadius: 4, background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}
-                      >
-                        <AlertTriangle size={9} /> AI Flagged
-                      </span>
-                    )}
-                    {post.converted_to_ticket && (
-                      <span
-                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold"
-                        style={{ borderRadius: 4, background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}
-                      >
-                        <CheckCircle size={9} /> Ticket Created
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Message */}
-                <p className="text-xs leading-relaxed text-gray-700 line-clamp-3">{post.message}</p>
-
-                {/* AI summary */}
-                {post.ai_summary && (
-                  <div className="rounded px-3 py-2" style={{ background: '#f9fafb', border: '1px solid #f0f0f0' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">AI Summary</p>
-                    <p className="mt-0.5 text-xs text-gray-600">{post.ai_summary}</p>
-                  </div>
-                )}
-
-                {/* Actions + Thread */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    {!post.converted_to_ticket && post.ai_flagged && (
-                      <button
-                        onClick={() => handleConvert(post)}
-                        disabled={converting === post.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-white transition-colors hover:opacity-90 disabled:opacity-50"
-                        style={{ background: '#b91c1c', borderRadius: 5 }}
-                      >
-                        <Clock size={11} />
-                        {converting === post.id ? 'Creating…' : 'Create Ticket'}
-                      </button>
-                    )}
-                    <a
-                      href={post.permalink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-gray-700"
-                    >
-                      <ExternalLink size={11} /> View on Facebook
-                    </a>
+                          className="px-2 py-0.5 text-[10px] font-extrabold capitalize"
+                          style={{ borderRadius: 4, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
+                        >
+                          <span
+                            className="mr-1 inline-block size-1.5 rounded-full"
+                            style={{ background: SEVERITY_DOT[post.severity], verticalAlign: 'middle' }}
+                          />
+                          {post.severity}
+                        </span>
+                      )}
+                      {post.ai_flagged && !post.converted_to_ticket && (
+                        <span
+                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold"
+                          style={{ borderRadius: 4, background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}
+                        >
+                          <AlertTriangle size={9} /> AI Flagged
+                        </span>
+                      )}
+                      {post.converted_to_ticket && (
+                        <span
+                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold"
+                          style={{ borderRadius: 4, background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}
+                        >
+                          <CheckCircle size={9} /> Ticket Created
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Inline Messenger thread */}
-                  {post.fb_sender_id && (
-                    <MessengerThread
-                      fbSenderId={post.fb_sender_id}
-                      senderName={post.page_name}
-                    />
+                  {/* Message */}
+                  <p className="text-xs leading-relaxed text-gray-700 line-clamp-3">{post.message}</p>
+
+                  {/* AI summary */}
+                  {post.ai_summary && (
+                    <div className="rounded px-3 py-2" style={{ background: '#f9fafb', border: '1px solid #f0f0f0' }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">AI Summary</p>
+                      <p className="mt-0.5 text-xs text-gray-600">{post.ai_summary}</p>
+                    </div>
                   )}
+
+                  {/* Actions + Thread */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      {!post.converted_to_ticket && post.ai_flagged && (
+                        <button
+                          onClick={() => handleConvert(post)}
+                          disabled={converting === post.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                          style={{ background: '#b91c1c', borderRadius: 5 }}
+                        >
+                          <Clock size={11} />
+                          {converting === post.id ? 'Creating…' : 'Create Ticket'}
+                        </button>
+                      )}
+                      <a
+                        href={post.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-gray-700"
+                      >
+                        <ExternalLink size={11} /> View on Facebook
+                      </a>
+                    </div>
+                    {post.fb_sender_id && (
+                      <MessengerThread fbSenderId={post.fb_sender_id} senderName={post.page_name} />
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+          <Pagination page={page} totalPages={totalPostPages} total={filtered.length} onPage={setPage} />
+        </>
       ))}
     </div>
   )
