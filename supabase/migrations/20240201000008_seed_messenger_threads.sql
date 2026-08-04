@@ -1,0 +1,22 @@
+-- Seed: messenger_threads (20 rows)
+insert into messenger_threads (id, sender_id, sender_type, text, created_at) values
+  ('a8000000-0000-0000-0000-000000000001', 'fb_user_001', 'citizen', 'Baha na po dito sa Poblacion, kailangan ng tulong!',                   now() - interval '10 days'),
+  ('a8000000-0000-0000-0000-000000000002', 'lgu_agent_01', 'lgu',    'Natanggap po namin ang inyong report. Padadalhan na po kami ng rescue team.', now() - interval '10 days'),
+  ('a8000000-0000-0000-0000-000000000003', 'fb_user_002', 'citizen', 'Landslide po sa Bigaa! Maraming pamilya naiipit sa putik!',            now() - interval '9 days'),
+  ('a8000000-0000-0000-0000-000000000004', 'lgu_agent_01', 'lgu',    'Naipadala na po ang rescue team sa Bigaa. Manatili sa ligtas na lugar.', now() - interval '9 days'),
+  ('a8000000-0000-0000-0000-000000000005', 'fb_user_003', 'citizen', 'Sunog po sa Padang! Tulong po!',                                       now() - interval '8 days'),
+  ('a8000000-0000-0000-0000-000000000006', 'lgu_agent_02', 'lgu',    'Naipadala na po ang BFP sa Padang. Lumayo po sa apoy.',                now() - interval '8 days'),
+  ('a8000000-0000-0000-0000-000000000007', 'fb_user_004', 'citizen', 'Taysan baha na po, kailangan ng pagkain at tubig',                     now() - interval '7 days'),
+  ('a8000000-0000-0000-0000-000000000008', 'lgu_agent_02', 'lgu',    'Ihahanda po namin ang relief goods para sa Taysan. Pumunta sa evacuation center.', now() - interval '7 days'),
+  ('a8000000-0000-0000-0000-000000000009', 'fb_user_005', 'citizen', 'Bagyo po! Maraming puno nabuwal sa Sto. Domingo',                      now() - interval '6 days'),
+  ('a8000000-0000-0000-0000-000000000010', 'lgu_agent_01', 'lgu',    'Naipadala na po ang response team. Manatili sa loob ng bahay.',        now() - interval '6 days'),
+  ('a8000000-0000-0000-0000-000000000011', 'fb_user_006', 'citizen', 'Flood sa Cabangan, hindi na makatawid sa kalsada',                     now() - interval '5 days'),
+  ('a8000000-0000-0000-0000-000000000012', 'lgu_agent_02', 'lgu',    'Sarado na po ang kalsada sa Cabangan. Gumamit ng alternate route.',    now() - interval '5 days'),
+  ('a8000000-0000-0000-0000-000000000013', 'fb_user_007', 'citizen', 'Lindol po sa Pawa! Gumuho ang bahay ng kapitbahay ko',                 now() - interval '4 days'),
+  ('a8000000-0000-0000-0000-000000000014', 'lgu_agent_01', 'lgu',    'Papuntahin na po namin ang rescue team sa Pawa. Huwag pumasok sa sira na gusali.', now() - interval '4 days'),
+  ('a8000000-0000-0000-0000-000000000015', 'fb_user_008', 'citizen', 'Mabinit baha na, 25 katao nasa bubong ng bahay',                       now() - interval '3 days'),
+  ('a8000000-0000-0000-0000-000000000016', 'lgu_agent_02', 'lgu',    'Padadalhan na po kami ng rubber boat para sa Mabinit. Manatili sa bubong.', now() - interval '3 days'),
+  ('a8000000-0000-0000-0000-000000000017', 'fb_user_009', 'citizen', 'Rawis landslide! Pamilya namin naiipit, please help!',                 now() - interval '2 days'),
+  ('a8000000-0000-0000-0000-000000000018', 'lgu_agent_01', 'lgu',    'Naipadala na po ang rescue team sa Rawis. Manatili sa ligtas na lugar.', now() - interval '2 days'),
+  ('a8000000-0000-0000-0000-000000000019', 'fb_user_010', 'citizen', 'Saan po ang pinakamalapit na evacuation center sa Buyuan?',            now() - interval '1 day'),
+  ('a8000000-0000-0000-0000-000000000020', 'lgu_agent_02', 'lgu',    'Ang pinakamalapit na evacuation center sa inyo ay ang Buyuan Multi-Purpose Hall.', now() - interval '1 day');
