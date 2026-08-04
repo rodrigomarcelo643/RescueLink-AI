@@ -13,6 +13,9 @@ export interface Incident {
   media_urls: string[]
   raw_message: string | null
   fb_sender_id: string | null
+  reporter_name: string | null
+  reporter_contact: string | null
+  ip_address: string | null
   created_at: string
   updated_at: string
 }
