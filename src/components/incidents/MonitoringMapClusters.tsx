@@ -1,8 +1,4 @@
-import { useEffect, useRef } from 'react'
-import { useMap, AdvancedMarker } from '@vis.gl/react-google-maps'
-import type { AdvancedMarkerRef } from '@vis.gl/react-google-maps'
-import { MarkerClusterer } from '@googlemaps/markerclusterer'
-import type { Marker } from '@googlemaps/markerclusterer'
+import { AdvancedMarker } from '@vis.gl/react-google-maps'
 import type { Incident } from '@/types/incident'
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -17,50 +13,45 @@ interface Props {
   onMarkerClick: (incident: Incident) => void
 }
 
+function PinIcon({ color }: { color: string }) {
+  return (
+    <div style={{ position: 'relative', width: 28, height: 36, cursor: 'pointer' }}>
+      <svg
+        width="28"
+        height="36"
+        viewBox="0 0 28 36"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
+      >
+        {/* Pin body */}
+        <path
+          d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
+          fill={color}
+        />
+        {/* White inner circle */}
+        <circle cx="14" cy="14" r="5.5" fill="white" fillOpacity="0.9" />
+      </svg>
+    </div>
+  )
+}
+
 export default function MonitoringMapClusters({ incidents, onMarkerClick }: Props) {
-  const map = useMap()
-  const clusterer = useRef<MarkerClusterer | null>(null)
-  const markersRef = useRef<Map<string, Marker>>(new Map())
-
-  useEffect(() => {
-    if (!map) return
-    clusterer.current = new MarkerClusterer({ map })
-    return () => clusterer.current?.clearMarkers()
-  }, [map])
-
-  const setMarkerRef = (marker: AdvancedMarkerRef, id: string) => {
-    if (marker && !markersRef.current.has(id)) {
-      markersRef.current.set(id, marker as Marker)
-      clusterer.current?.addMarker(marker as Marker)
-    } else if (!marker && markersRef.current.has(id)) {
-      clusterer.current?.removeMarker(markersRef.current.get(id)!)
-      markersRef.current.delete(id)
-    }
-  }
+  const valid = incidents.filter(
+    (i) => typeof i.latitude === 'number' && typeof i.longitude === 'number'
+  )
 
   return (
     <>
-      {incidents
-        .filter((i) => i.latitude && i.longitude)
-        .map((incident) => (
-          <AdvancedMarker
-            key={incident.id}
-            position={{ lat: incident.latitude!, lng: incident.longitude! }}
-            ref={(m) => setMarkerRef(m, incident.id)}
-            onClick={() => onMarkerClick(incident)}
-          >
-            <div
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
-                background: SEVERITY_COLOR[incident.severity] ?? '#6b7280',
-                border: '2px solid #fff',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-              }}
-            />
-          </AdvancedMarker>
-        ))}
+      {valid.map((incident) => (
+        <AdvancedMarker
+          key={incident.id}
+          position={{ lat: incident.latitude!, lng: incident.longitude! }}
+          onClick={() => onMarkerClick(incident)}
+        >
+          <PinIcon color={SEVERITY_COLOR[incident.severity] ?? '#6b7280'} />
+        </AdvancedMarker>
+      ))}
     </>
   )
 }
