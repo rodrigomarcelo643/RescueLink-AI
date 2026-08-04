@@ -183,10 +183,31 @@ export default function Dashboard() {
 
         {/* Map */}
         <div
-          className="overflow-hidden bg-white lg:col-span-2"
+          className="relative overflow-hidden bg-white lg:col-span-2"
           style={{ height: 320, border: '1px solid #e5e7eb', borderRadius: 5 }}
         >
           <IncidentMap incidents={incidents} onMarkerClick={setSelected} />
+
+          {/* Map header overlay */}
+          <div className="absolute left-3 top-3 flex items-center gap-2 rounded bg-white/90 px-2.5 py-1.5"
+            style={{ border: '1px solid #e5e7eb', backdropFilter: 'blur(4px)' }}>
+            <span className="size-1.5 animate-pulse rounded-full bg-green-500" />
+            <span className="text-[11px] font-semibold text-gray-600">{incidents.filter(i => i.latitude && i.longitude).length} mapped</span>
+          </div>
+
+          {/* Severity legend */}
+          <div className="absolute bottom-3 left-3 flex flex-col gap-1 rounded bg-white/90 px-2.5 py-2"
+            style={{ border: '1px solid #e5e7eb', backdropFilter: 'blur(4px)' }}>
+            {(['critical', 'high', 'medium', 'low'] as const).map((s) => (
+              <div key={s} className="flex items-center gap-1.5">
+                <svg width="8" height="11" viewBox="0 0 28 36" fill="none">
+                  <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
+                    fill={SEVERITY_COLOR[s]} />
+                </svg>
+                <span className="text-[10px] font-medium capitalize text-gray-600">{s}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Breakdowns */}
