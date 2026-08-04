@@ -1,0 +1,22 @@
+-- Seed: widget_messages (20 rows)
+insert into widget_messages (id, session_id, sender, text, created_at) values
+  ('a9000000-0000-0000-0000-000000000001', 'session_001', 'user', 'Hello, may baha po sa aming lugar.',                                        now() - interval '5 days'),
+  ('a9000000-0000-0000-0000-000000000002', 'session_001', 'bot',  'Salamat sa inyong report. Anong barangay po kayo?',                         now() - interval '5 days'),
+  ('a9000000-0000-0000-0000-000000000003', 'session_001', 'user', 'Brgy. Poblacion po, Legazpi City.',                                         now() - interval '5 days'),
+  ('a9000000-0000-0000-0000-000000000004', 'session_001', 'bot',  'Naipadala na po ang inyong report sa LGU. Manatili sa ligtas na lugar.',    now() - interval '5 days'),
+  ('a9000000-0000-0000-0000-000000000005', 'session_002', 'user', 'Saan po ang pinakamalapit na evacuation center?',                           now() - interval '4 days'),
+  ('a9000000-0000-0000-0000-000000000006', 'session_002', 'bot',  'Ang pinakamalapit na evacuation center ay ang Legazpi City Gym sa Brgy. Poblacion.', now() - interval '4 days'),
+  ('a9000000-0000-0000-0000-000000000007', 'session_002', 'user', 'Salamat po!',                                                               now() - interval '4 days'),
+  ('a9000000-0000-0000-0000-000000000008', 'session_002', 'bot',  'Walang anuman po. Ingat kayo!',                                             now() - interval '4 days'),
+  ('a9000000-0000-0000-0000-000000000009', 'session_003', 'user', 'Paano po mag-donate ng pagkain?',                                           now() - interval '3 days'),
+  ('a9000000-0000-0000-0000-000000000010', 'session_003', 'bot',  'Maaari po kayong mag-drop off ng donations sa City Hall, 8AM-5PM.',         now() - interval '3 days'),
+  ('a9000000-0000-0000-0000-000000000011', 'session_003', 'user', 'Ok po, pupunta kami bukas.',                                                now() - interval '3 days'),
+  ('a9000000-0000-0000-0000-000000000012', 'session_003', 'bot',  'Maraming salamat po sa inyong tulong!',                                     now() - interval '3 days'),
+  ('a9000000-0000-0000-0000-000000000013', 'session_004', 'user', 'May lindol kanina, ok lang ba ang Pawa?',                                   now() - interval '2 days'),
+  ('a9000000-0000-0000-0000-000000000014', 'session_004', 'bot',  'Naka-monitor na po namin ang sitwasyon sa Pawa. Nandoon na ang rescue team.', now() - interval '2 days'),
+  ('a9000000-0000-0000-0000-000000000015', 'session_004', 'user', 'Salamat sa update!',                                                        now() - interval '2 days'),
+  ('a9000000-0000-0000-0000-000000000016', 'session_005', 'user', 'Gusto ko mag-volunteer, paano po?',                                         now() - interval '1 day'),
+  ('a9000000-0000-0000-0000-000000000017', 'session_005', 'bot',  'Maaari po kayong mag-register bilang volunteer sa aming website o pumunta sa LGU office.', now() - interval '1 day'),
+  ('a9000000-0000-0000-0000-000000000018', 'session_005', 'user', 'Saan po ang LGU office?',                                                   now() - interval '1 day'),
+  ('a9000000-0000-0000-0000-000000000019', 'session_005', 'bot',  'Ang LGU Legazpi City office ay nasa Brgy. Poblacion, malapit sa City Hall.', now() - interval '1 day'),
+  ('a9000000-0000-0000-0000-000000000020', 'session_005', 'user', 'Salamat po!',                                                               now() - interval '23 hours');
