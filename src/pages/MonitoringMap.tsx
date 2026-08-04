@@ -93,9 +93,9 @@ export default function MonitoringMap() {
 
         <APIProvider apiKey={API_KEY}>
           <Map
-            defaultCenter={{ lat: 10.3157, lng: 123.8854 }}
-            defaultZoom={11}
-            mapId="rescuelink-monitoring"
+            defaultCenter={{ lat: 13.1391, lng: 123.7438 }}
+            defaultZoom={12}
+            mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'rescuelink-map'}
             style={{ width: '100%', height: '100%' }}
             gestureHandling="greedy"
           >
@@ -110,7 +110,9 @@ export default function MonitoringMap() {
         >
           {(['critical', 'high', 'medium', 'low'] as const).map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full" style={{ background: SEVERITY_COLOR[s] }} />
+              <svg width="10" height="13" viewBox="0 0 28 36" fill="none">
+                <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill={SEVERITY_COLOR[s]} />
+              </svg>
               <span className="text-[11px] font-medium capitalize text-gray-600">{s}</span>
             </div>
           ))}
