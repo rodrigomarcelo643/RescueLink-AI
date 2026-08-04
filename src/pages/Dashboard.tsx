@@ -87,13 +87,6 @@ export default function Dashboard() {
     color: CHANNEL_COLOR[c],
   })).filter((c) => c.count > 0)
 
-  const disasterTypes = Object.entries(
-    incidents.reduce<Record<string, number>>((acc, i) => {
-      acc[i.disaster_type] = (acc[i.disaster_type] ?? 0) + 1
-      return acc
-    }, {})
-  ).sort((a, b) => b[1] - a[1]).slice(0, 5)
-
   // ── Trend: incidents per day (last 7 days) ───────────────────────────
   const trendData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
