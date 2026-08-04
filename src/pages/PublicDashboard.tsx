@@ -6,7 +6,8 @@ import EmptyState from '@/components/shared/EmptyState'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import type { Donation } from '@/types/donation'
 import type { Incident } from '@/types/incident'
-import { AlertTriangle, Heart, Users, MapPin, Clock, ArrowLeft, LocateFixed } from 'lucide-react'
+import { AlertTriangle, Heart, Users, MapPin, Clock, ArrowLeft, LocateFixed, FileText } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e', medium: '#f59e0b', high: '#f97316', critical: '#b91c1c',
@@ -140,13 +141,22 @@ export default function PublicDashboard() {
             <h2 className="text-lg font-extrabold tracking-tight text-gray-900">Live Overview</h2>
             <p className="mt-0.5 text-sm text-gray-400">Real-time data. No login required.</p>
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900"
-            style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
-          >
-            <ArrowLeft size={13} /> Back
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/report"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: '#b91c1c', borderRadius: 5 }}
+            >
+              <FileText size={12} /> Report Incident
+            </Link>
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900"
+              style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
+            >
+              <ArrowLeft size={13} /> Back
+            </button>
+          </div>
         </div>
 
         {/* Location filter */}
