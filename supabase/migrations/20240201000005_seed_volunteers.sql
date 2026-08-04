@@ -1,0 +1,22 @@
+-- Seed: volunteers (20 rows)
+insert into volunteers (id, profile_id, skills, equipment, latitude, longitude, is_available, created_at) values
+  ('e1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000006', array['first_aid','search_and_rescue'],       array['rope','flashlight'],          13.1200, 123.7200, true,  now() - interval '25 days'),
+  ('e1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000007', array['medical','first_aid'],                 array['medical_kit','stretcher'],    13.1250, 123.7250, true,  now() - interval '24 days'),
+  ('e1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000008', array['boat_operation','swimming'],           array['rubber_boat','life_vest'],    13.1700, 123.7000, false, now() - interval '23 days'),
+  ('e1000000-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000009', array['logistics','driving'],                 array['truck','radio'],              13.1750, 123.7050, true,  now() - interval '22 days'),
+  ('e1000000-0000-0000-0000-000000000005', 'a1000000-0000-0000-0000-000000000010', array['search_and_rescue','first_aid'],       array['rope','helmet','flashlight'], 13.1100, 123.7100, true,  now() - interval '21 days'),
+  ('e1000000-0000-0000-0000-000000000006', 'a1000000-0000-0000-0000-000000000019', array['medical','counseling'],                array['medical_kit'],                13.1750, 123.7050, true,  now() - interval '12 days'),
+  ('e1000000-0000-0000-0000-000000000007', 'a1000000-0000-0000-0000-000000000001', array['cooking','logistics'],                 array['portable_stove'],             13.1391, 123.7438, false, now() - interval '10 days'),
+  ('e1000000-0000-0000-0000-000000000008', 'a1000000-0000-0000-0000-000000000002', array['driving','logistics'],                 array['van','radio'],                13.1450, 123.7500, true,  now() - interval '9 days'),
+  ('e1000000-0000-0000-0000-000000000009', 'a1000000-0000-0000-0000-000000000003', array['first_aid','swimming'],                array['life_vest','medical_kit'],    13.1300, 123.7350, true,  now() - interval '8 days'),
+  ('e1000000-0000-0000-0000-000000000010', 'a1000000-0000-0000-0000-000000000004', array['search_and_rescue','boat_operation'],  array['rubber_boat','rope'],         13.1550, 123.6900, false, now() - interval '7 days'),
+  ('e1000000-0000-0000-0000-000000000011', 'a1000000-0000-0000-0000-000000000005', array['medical','first_aid'],                 array['medical_kit','oxygen_tank'],  13.1600, 123.6950, true,  now() - interval '6 days'),
+  ('e1000000-0000-0000-0000-000000000012', 'a1000000-0000-0000-0000-000000000017', array['logistics','cooking'],                 array['portable_stove','truck'],     13.1250, 123.7250, true,  now() - interval '5 days'),
+  ('e1000000-0000-0000-0000-000000000013', 'a1000000-0000-0000-0000-000000000018', array['driving','search_and_rescue'],         array['4x4_vehicle','rope'],         13.1700, 123.7000, true,  now() - interval '4 days'),
+  ('e1000000-0000-0000-0000-000000000014', 'a1000000-0000-0000-0000-000000000020', array['first_aid','counseling'],              array['medical_kit'],                13.1100, 123.7100, false, now() - interval '3 days'),
+  ('e1000000-0000-0000-0000-000000000015', 'a1000000-0000-0000-0000-000000000006', array['boat_operation','swimming','first_aid'],array['rubber_boat','life_vest'],   13.1200, 123.7200, true,  now() - interval '2 days'),
+  ('e1000000-0000-0000-0000-000000000016', 'a1000000-0000-0000-0000-000000000007', array['medical','search_and_rescue'],         array['medical_kit','stretcher'],    13.1250, 123.7250, true,  now() - interval '1 day'),
+  ('e1000000-0000-0000-0000-000000000017', 'a1000000-0000-0000-0000-000000000008', array['logistics','driving'],                 array['truck','radio'],              13.1700, 123.7000, true,  now() - interval '20 hours'),
+  ('e1000000-0000-0000-0000-000000000018', 'a1000000-0000-0000-0000-000000000009', array['cooking','logistics'],                 array['portable_stove','generator'], 13.1750, 123.7050, false, now() - interval '16 hours'),
+  ('e1000000-0000-0000-0000-000000000019', 'a1000000-0000-0000-0000-000000000010', array['first_aid','swimming'],                array['life_vest','rope'],           13.1100, 123.7100, true,  now() - interval '12 hours'),
+  ('e1000000-0000-0000-0000-000000000020', 'a1000000-0000-0000-0000-000000000019', array['search_and_rescue','boat_operation'],  array['rubber_boat','helmet'],       13.1750, 123.7050, true,  now() - interval '8 hours');
