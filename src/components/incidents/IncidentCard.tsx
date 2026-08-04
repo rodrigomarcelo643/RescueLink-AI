@@ -166,7 +166,7 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
         <IncidentDetailsModal
           incident={incident}
           onClose={() => setShowModal(false)}
-          onStatusChange={handleStatusChange}
+          onStatusChange={(_id, status) => handleStatusChange(status)}
         />
       )}
     </>

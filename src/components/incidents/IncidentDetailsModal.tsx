@@ -7,7 +7,7 @@ import ProofCarousel from '@/components/incidents/ProofCarousel'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
 import {
   X, MapPin, Users, Clock, Radio, User, Phone,
-  AlertTriangle, ShieldAlert, FileText, Globe, Key, Tag
+  AlertTriangle, ShieldAlert, FileText
 } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
