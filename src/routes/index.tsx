@@ -8,15 +8,18 @@ import Incidents from '@/pages/Incidents'
 import Donations from '@/pages/Donations'
 import Volunteers from '@/pages/Volunteers'
 import PublicDashboard from '@/pages/PublicDashboard'
+import PublicReport from '@/pages/PublicReport'
 import Login from '@/pages/Login'
 import Signup from '@/pages/Signup'
 import Unauthorized from '@/pages/Unauthorized'
 import ForgotPassword from '@/pages/ForgotPassword'
 
+import TrackReport from '@/pages/TrackReport'
 import Settings from '@/pages/Settings'
 import MonitoringMap from '@/pages/MonitoringMap'
 import FbMonitor from '@/pages/FbMonitor'
 import MessengerTest from '@/pages/MessengerTest'
+import EvacuationCenters from '@/pages/EvacuationCenters'
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { user, role, loading } = useAuth()
@@ -31,7 +34,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
     }
     return <Navigate to={landing[role] ?? '/unauthorized'} replace />
   }
-  // user exists but role not yet resolved — keep waiting
+  // user exists but rol  e not yet resolved — keep waiting
   if (user && !role) return <LoadingSpinner />
   return <>{children}</>
 }
@@ -46,6 +49,8 @@ export default function AppRouter() {
         <Route path="/signup" element={<AuthRedirect><Signup /></AuthRedirect>} />
         <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
         <Route path="/public" element={<PublicDashboard />} />
+        <Route path="/report" element={<PublicReport />} />
+        <Route path="/track/:id" element={<TrackReport />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/messenger-test" element={<MessengerTest />} />
 
@@ -56,6 +61,7 @@ export default function AppRouter() {
           <Route path="/fb-monitor" element={<FbMonitor />} />
           <Route path="/donations" element={<Donations />} />
           <Route path="/volunteers" element={<Volunteers />} />
+          <Route path="/evacuation-centers" element={<EvacuationCenters />} />
           <Route path="/map" element={<MonitoringMap />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
