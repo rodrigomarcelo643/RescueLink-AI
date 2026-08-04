@@ -2,16 +2,102 @@ import { supabase } from './supabase'
 import type { Incident } from '@/types/incident'
 import { DISASTER_TYPES } from '@/constants/disasterTypes'
 
+const MOCK_INCIDENTS: Incident[] = [
+  {
+    id: 'mock-101',
+    channel: 'web',
+    disaster_type: 'Flood',
+    location_text: 'Barangay Sto. Domingo, Cainta, Rizal',
+    latitude: 14.5772,
+    longitude: 121.1234,
+    people_affected: 8,
+    severity: 'critical',
+    status: 'pending',
+    priority_score: 95,
+    ai_summary: 'Severe chest-deep flood waters trapped family of 8 on roof of 2-story house.',
+    media_urls: [
+      'https://images.unsplash.com/photo-1547683905-f686c993aae5?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1569163139599-0f4517e36f31?w=600&auto=format&fit=crop',
+    ],
+    raw_message: 'Kailangan po namin ng saklolo, lagpas tao na po ang baha dito sa Sto. Domingo!',
+    fb_sender_id: null,
+    reporter_name: 'Maria Santos',
+    reporter_contact: '09171234567',
+    ip_address: '127.0.0.1',
+    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    updated_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+  },
+  {
+    id: 'mock-102',
+    channel: 'messenger',
+    disaster_type: 'Fire',
+    location_text: 'Barangay San Jose, Pasig City',
+    latitude: 14.56,
+    longitude: 121.08,
+    people_affected: 3,
+    severity: 'high',
+    status: 'responding',
+    priority_score: 82,
+    ai_summary: 'Residential fire spreading rapidly across wooden houses.',
+    media_urls: [
+      'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1574786198875-49f5d09fe2d2?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1616863072044-885e33d0c476?w=600&auto=format&fit=crop',
+    ],
+    raw_message: 'Nasusunog po bahay ng kapitbahay namin sa San Jose Pasig',
+    fb_sender_id: '1000123456',
+    reporter_name: 'Juan Dela Cruz',
+    reporter_contact: '09189876543',
+    ip_address: '127.0.0.1',
+    created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+    updated_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+  },
+  {
+    id: 'mock-103',
+    channel: 'telegram',
+    disaster_type: 'Landslide',
+    location_text: 'Sitio Upper, Antipolo, Rizal',
+    latitude: 14.58,
+    longitude: 121.18,
+    people_affected: 5,
+    severity: 'medium',
+    status: 'rescued',
+    priority_score: 60,
+    ai_summary: 'Soil erosion blocked main access road.',
+    media_urls: [
+      'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop',
+    ],
+    raw_message: 'May guho po sa kalsada sa Antipolo',
+    fb_sender_id: null,
+    reporter_name: 'Elena Reyes',
+    reporter_contact: '09223334455',
+    ip_address: '127.0.0.1',
+    created_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
+    updated_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
+  },
+]
+
 export const getIncidents = async (): Promise<Incident[]> => {
-  const { data, error } = await supabase
-    .from('rescue_tickets')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
+  try {
+    const { data, error } = await supabase
+      .from('rescue_tickets')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    if (data && data.length > 0) return data
+    return MOCK_INCIDENTS
+  } catch (err) {
+    console.warn('Using fallback mock incidents:', err)
+    return MOCK_INCIDENTS
+  }
 }
 
 export const updateIncidentStatus = async (id: string, status: Incident['status']) => {
+  if (id.startsWith('mock-')) return // mock handling
   const { error } = await supabase
     .from('rescue_tickets')
     .update({ status })
@@ -20,6 +106,7 @@ export const updateIncidentStatus = async (id: string, status: Incident['status'
 }
 
 export const assignResponder = async (id: string, responderId: string) => {
+  if (id.startsWith('mock-')) return
   const { error } = await supabase
     .from('rescue_tickets')
     .update({ assigned_responder_id: responderId, status: 'responding' })

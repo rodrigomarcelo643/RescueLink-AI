@@ -1,0 +1,244 @@
+import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import type { Incident } from '@/types/incident'
+import StatusBadge from '@/components/shared/StatusBadge'
+import ProofCarousel from '@/components/incidents/ProofCarousel'
+import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
+import { SEVERITY_COLOR } from '@/constants/incidentStatus'
+import { MapPin, Users, Clock, Radio, User, Phone, MoreVertical, Eye } from 'lucide-react'
+
+const SEVERITY_DOT: Record<string, string> = {
+  low: '#22c55e',
+  medium: '#f59e0b',
+  high: '#f97316',
+  critical: '#b91c1c',
+}
+
+interface IncidentTableProps {
+  incidents: Incident[]
+  onStatusChange: (id: string, status: Incident['status']) => void
+}
+
+function ActionMenu({
+  currentStatus,
+  onStatusChange,
+  onViewDetails,
+}: {
+  currentStatus: Incident['status']
+  onStatusChange: (status: Incident['status']) => void
+  onViewDetails: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const statuses: Incident['status'][] = ['pending', 'responding', 'rescued', 'closed']
+  const available = statuses.filter((s) => s !== currentStatus)
+
+  return (
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+        aria-label="Actions"
+        title="More options"
+      >
+        <MoreVertical size={16} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 z-40 mt-1 w-44 origin-top-right rounded-md bg-white p-1 shadow-xl border border-gray-200"
+          >
+            {/* View Full Details Option */}
+            <button
+              type="button"
+              onClick={() => {
+                onViewDetails()
+                setOpen(false)
+              }}
+              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-100 rounded transition-colors flex items-center gap-2"
+            >
+              <Eye size={13} className="text-gray-500" />
+              View Full Details
+            </button>
+
+            <div className="my-1 border-t border-gray-100" />
+
+            <div className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+              Set Status
+            </div>
+            {available.map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => {
+                  onStatusChange(status)
+                  setOpen(false)
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
+              >
+                Mark {status}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+export default function IncidentTable({ incidents, onStatusChange }: IncidentTableProps) {
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
+
+  return (
+    <>
+      <div className="overflow-x-auto bg-white" style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}>
+        <table className="w-full text-left border-collapse min-w-[900px]">
+          <thead>
+            <tr className="bg-gray-50/70" style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Incident</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Location</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Severity & Status</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Channel</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">People & Reporter</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Proof Media</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Date</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {incidents.map((incident) => (
+              <tr key={incident.id} className="hover:bg-gray-50/60 transition-colors">
+                
+                {/* Incident & Summary */}
+                <td className="px-4 py-3.5 align-top max-w-[220px]">
+                  <div className="flex items-start gap-2 cursor-pointer" onClick={() => setSelectedIncident(incident)}>
+                    <span
+                      className="mt-1 size-2.5 shrink-0 rounded-full"
+                      style={{ background: SEVERITY_DOT[incident.severity] ?? '#6b7280' }}
+                    />
+                    <div>
+                      <p className="text-xs font-extrabold capitalize text-gray-900 leading-tight hover:text-red-700 transition-colors">
+                        {incident.disaster_type}
+                      </p>
+                      {incident.ai_summary ? (
+                        <p className="mt-1 text-[11px] text-gray-500 line-clamp-2 leading-relaxed">
+                          {incident.ai_summary}
+                        </p>
+                      ) : incident.raw_message ? (
+                        <p className="mt-1 text-[11px] text-gray-400 line-clamp-2 italic">
+                          "{incident.raw_message}"
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </td>
+
+                {/* Location */}
+                <td className="px-4 py-3.5 align-top max-w-[180px]">
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700 font-medium">
+                    <MapPin size={13} className="mt-0.5 shrink-0 text-gray-400" />
+                    <span className="line-clamp-2">{incident.location_text}</span>
+                  </div>
+                </td>
+
+                {/* Severity & Status */}
+                <td className="px-4 py-3.5 align-top">
+                  <div className="flex flex-col items-start gap-1.5">
+                    <StatusBadge status={incident.status} />
+                    <span className={`text-[10px] font-bold uppercase tracking-wide ${SEVERITY_COLOR[incident.severity]}`}>
+                      {incident.severity} severity
+                    </span>
+                  </div>
+                </td>
+
+                {/* Channel */}
+                <td className="px-4 py-3.5 align-top">
+                  <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 capitalize">
+                    <Radio size={10} />
+                    {incident.channel}
+                  </span>
+                </td>
+
+                {/* People & Reporter */}
+                <td className="px-4 py-3.5 align-top max-w-[170px]">
+                  <div className="flex flex-col gap-1 text-[11px] text-gray-600">
+                    {incident.people_affected !== null && (
+                      <span className="flex items-center gap-1 font-semibold text-gray-800">
+                        <Users size={11} className="text-gray-400" />
+                        {incident.people_affected} affected
+                      </span>
+                    )}
+                    {incident.reporter_name && (
+                      <span className="flex items-center gap-1 text-gray-500">
+                        <User size={10} className="text-gray-400" />
+                        {incident.reporter_name}
+                      </span>
+                    )}
+                    {incident.reporter_contact && (
+                      <span className="flex items-center gap-1 text-gray-400">
+                        <Phone size={9} />
+                        {incident.reporter_contact}
+                      </span>
+                    )}
+                  </div>
+                </td>
+
+                {/* Proof Photos */}
+                <td className="px-4 py-3.5 align-top">
+                  <ProofCarousel urls={incident.media_urls ?? []} compact />
+                </td>
+
+                {/* Date */}
+                <td className="px-4 py-3.5 align-top whitespace-nowrap text-[11px] text-gray-400 font-medium">
+                  <div className="flex items-center gap-1">
+                    <Clock size={11} />
+                    {new Date(incident.created_at).toLocaleString('en-PH', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </td>
+
+                {/* Actions (Three Dots Menu) */}
+                <td className="px-4 py-3.5 align-top text-right">
+                  <ActionMenu
+                    currentStatus={incident.status}
+                    onStatusChange={(newStatus) => onStatusChange(incident.id, newStatus)}
+                    onViewDetails={() => setSelectedIncident(incident)}
+                  />
+                </td>
+
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Incident Details Modal */}
+      <IncidentDetailsModal
+        incident={selectedIncident}
+        onClose={() => setSelectedIncident(null)}
+        onStatusChange={onStatusChange}
+      />
+    </>
+  )
+}

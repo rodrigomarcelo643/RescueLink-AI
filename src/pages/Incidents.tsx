@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useIncidents } from '@/hooks/useIncidents'
 import IncidentCard from '@/components/incidents/IncidentCard'
+import IncidentTable from '@/components/incidents/IncidentTable'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { updateIncidentStatus } from '@/services/incidents.service'
+import { updateIncident } from '@/redux/slices/incidentSlice'
+import { useDispatch } from 'react-redux'
+import { ChevronDown, ChevronLeft, ChevronRight, Table as TableIcon, LayoutGrid } from 'lucide-react'
 import type { Incident } from '@/types/incident'
 
 const STATUSES: Array<Incident['status'] | 'all'> = ['all', 'pending', 'responding', 'rescued', 'closed']
@@ -50,10 +54,24 @@ function getPages(current: number, total: number): Array<number | '…'> {
 }
 
 export default function Incidents() {
+  const dispatch = useDispatch()
   const { items, loading } = useIncidents()
   const [filter, setFilter] = useState<Incident['status'] | 'all'>('all')
   const [channelFilter, setChannelFilter] = useState<Incident['channel'] | 'all'>('all')
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
   const [page, setPage] = useState(1)
+
+  const handleStatusChange = async (id: string, status: Incident['status']) => {
+    try {
+      await updateIncidentStatus(id, status)
+      const target = items.find((i) => i.id === id)
+      if (target) {
+        dispatch(updateIncident({ ...target, status }))
+      }
+    } catch (e) {
+      console.error('Failed to update status:', e)
+    }
+  }
 
   const filtered = items
     .filter((i) => filter === 'all' || i.status === filter)
@@ -72,9 +90,33 @@ export default function Incidents() {
   return (
     <div className="flex flex-col gap-6">
 
-      <div>
-        <h1 className="text-lg font-extrabold tracking-tight text-gray-900">Incidents</h1>
-        <p className="mt-0.5 text-sm text-gray-400">Monitor and manage active rescue operations</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-extrabold tracking-tight text-gray-900">Incidents</h1>
+          <p className="mt-0.5 text-sm text-gray-400">Monitor and manage active rescue operations</p>
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center rounded-md bg-gray-100 p-1" style={{ border: '1px solid #e5e7eb' }}>
+          <button
+            type="button"
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold transition-all rounded ${
+              viewMode === 'table' ? 'bg-white text-red-700 shadow-xs' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <TableIcon size={13} /> Table View
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('card')}
+            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold transition-all rounded ${
+              viewMode === 'card' ? 'bg-white text-red-700 shadow-xs' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <LayoutGrid size={13} /> Card View
+          </button>
+        </div>
       </div>
 
       {/* Filters row */}
@@ -100,13 +142,16 @@ export default function Incidents() {
         </span>
       </div>
 
-      {/* List */}
-      <div className="flex flex-col gap-3">
-        {paginated.length === 0
-          ? <EmptyState title="No incidents found" description="Reports will appear here in real-time." />
-          : paginated.map((incident) => <IncidentCard key={incident.id} incident={incident} />)
-        }
-      </div>
+      {/* Content — Table or Card Grid */}
+      {paginated.length === 0 ? (
+        <EmptyState title="No incidents found" description="Reports will appear here in real-time." />
+      ) : viewMode === 'table' ? (
+        <IncidentTable incidents={paginated} onStatusChange={handleStatusChange} />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {paginated.map((incident) => <IncidentCard key={incident.id} incident={incident} />)}
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
