@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDonations } from '@/hooks/useDonations'
 import { useIncidents } from '@/hooks/useIncidents'
 import DonationRow from '@/components/donations/DonationRow'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
+import Pagination from '@/components/shared/Pagination'
 import { addDonation } from '@/services/donations.service'
 import { Heart, Banknote, Package, Plus, X } from 'lucide-react'
 
 const PAYMENT_METHODS = ['GCash', 'Maya', 'Bank Transfer', 'Cash', 'Other']
+const PER_PAGE = 10
 
 export default function Donations() {
   const { items, loading, refresh } = useDonations()
@@ -24,6 +26,7 @@ export default function Donations() {
   ]
 
   const [open, setOpen] = useState(false)
+  const [page, setPage] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({
@@ -59,6 +62,12 @@ export default function Donations() {
       setSaving(false)
     }
   }
+
+  // Reset page when items change
+  useEffect(() => { setPage(1) }, [items.length])
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PER_PAGE))
+  const paginated = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   if (loading) return <LoadingSpinner />
 
@@ -96,20 +105,23 @@ export default function Donations() {
       {items.length === 0 ? (
         <EmptyState title="No donations yet" description="Record a donation manually or wait for online submissions." />
       ) : (
-        <div className="overflow-hidden bg-white" style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}>
-          <table className="w-full text-left">
-            <thead>
-              <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                {['Type', 'Amount', 'Method', 'Status', 'Date'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((d) => <DonationRow key={d.id} donation={d} />)}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="overflow-hidden bg-white" style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}>
+            <table className="w-full text-left">
+              <thead>
+                <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  {['Type', 'Amount', 'Method', 'Status', 'Date', ''].map((h) => (
+                    <th key={h} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map((d) => <DonationRow key={d.id} donation={d} />)}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={page} totalPages={totalPages} total={items.length} onPage={setPage} />
+        </>
       )}
 
       {/* Add Donation Modal */}
