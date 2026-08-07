@@ -38,7 +38,7 @@ AI automates report classification, prioritization, donation matching, and publi
 
 ---
 
-## How It Works
+## How It Works for User
 
 ```
 Citizen reports via Messenger / Telegram / WhatsApp / Web
