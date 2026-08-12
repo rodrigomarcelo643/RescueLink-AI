@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   AlertTriangle, MapPin, Users, FileText, Phone, User,
-  LocateFixed, X, CloudUpload, CheckCircle, Camera,
+  LocateFixed, X, CloudUpload, CheckCircle, Camera, ShieldAlert, Sparkles,
 } from 'lucide-react'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { FadeUp, FadeIn } from '@/components/shared/MotionWrappers'
 import { DISASTER_TYPES } from '@/constants/disasterTypes'
 import { checkRateLimit, uploadProofImages, submitPublicReport } from '@/services/incidents.service'
+import type { AIValidationResult } from '@/services/aiValidation.service'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const MAX_IMAGES = 5
@@ -57,6 +58,7 @@ export default function PublicReport() {
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [ticketId, setTicketId] = useState('')
+  const [aiResult, setAiResult] = useState<AIValidationResult | null>(null)
 
   const browseRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
@@ -83,7 +85,6 @@ export default function PublicReport() {
     setEntries((p) => p.filter((_, idx) => idx !== i))
   }
 
-  // Drag handlers
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true) }
   const onDragLeave = () => setDragging(false)
   const onDrop = (e: React.DragEvent) => {
@@ -115,14 +116,13 @@ export default function PublicReport() {
       const ip = await getClientIp()
       const allowed = await checkRateLimit(ip)
       if (!allowed) {
-        setError('Too many reports submitted recently. Please wait before trying again.')
+        setError('Rate limit reached (maximum 3 incident reports per 3 minutes per IP address). Please wait 3 minutes before submitting another report, or contact emergency hotline 911.')
         setLoading(false)
         return
       }
 
       let mediaUrls: string[] = []
       if (entries.length > 0) {
-        // Animate progress per file
         mediaUrls = await uploadProofImages(
           entries.map((e) => e.file),
           (fileIndex, pct) => {
@@ -134,7 +134,7 @@ export default function PublicReport() {
         )
       }
 
-      const id = await submitPublicReport({
+      const response = await submitPublicReport({
         disaster_type: (disasterType === 'other' ? otherType.trim() : disasterType) as typeof DISASTER_TYPES[number],
         location_text: locationText,
         latitude: coords?.lat ?? null,
@@ -147,7 +147,8 @@ export default function PublicReport() {
         ip_address: ip,
       })
 
-      setTicketId(id)
+      setTicketId(response.id)
+      setAiResult(response.aiValidation)
       setSubmitted(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Submission failed. Please try again.')
@@ -161,6 +162,7 @@ export default function PublicReport() {
     entries.forEach((e) => URL.revokeObjectURL(e.preview))
     setSubmitted(false); setEntries([]); setDescription(''); setLocationText('')
     setCoords(null); setDisasterType(''); setOtherType(''); setPeopleAffected(''); setReporterName(''); setReporterContact('')
+    setAiResult(null)
     setError('')
   }
 
@@ -186,9 +188,33 @@ export default function PublicReport() {
           <div>
             <h2 className="text-xl font-extrabold text-gray-900">Report Submitted!</h2>
             <p className="mt-1.5 text-sm text-gray-400">
-              Your incident has been logged. LGU responders have been notified.
+              Your incident has been logged. LGU responders have been notified via real-time alerts.
             </p>
           </div>
+
+          {/* AI Validation Banner */}
+          {aiResult && (
+            <div className="w-full text-left p-3.5 rounded-lg border border-red-100 bg-red-50/60 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-black uppercase text-red-800 tracking-wide">
+                  <Sparkles size={13} className="text-red-600" /> AI Validated & Scored
+                </span>
+                <span className={`px-2 py-0.5 text-[10px] font-black uppercase rounded ${
+                  aiResult.severity === 'critical' ? 'bg-red-600 text-white' :
+                  aiResult.severity === 'high' ? 'bg-orange-500 text-white' :
+                  aiResult.severity === 'medium' ? 'bg-amber-500 text-black' : 'bg-emerald-600 text-white'
+                }`}>
+                  {aiResult.severity} severity
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-gray-800 leading-relaxed">
+                {aiResult.ai_summary}
+              </p>
+              <p className="text-[10px] text-gray-400">
+                Priority Score: <strong className="text-gray-900">{aiResult.priority_score} / 100</strong>
+              </p>
+            </div>
+          )}
 
           {/* Ticket ID */}
           <div className="w-full" style={{ background: '#fafafa', border: '1px solid #e5e7eb', borderRadius: 6, padding: '10px 14px' }}>
@@ -223,7 +249,7 @@ export default function PublicReport() {
   return (
     <div className="flex min-h-screen bg-white font-sans">
 
-      {/* Left panel — fixed */}
+      {/* Left panel */}
       <motion.div
         className="relative hidden w-[38%] flex-col items-center justify-center gap-8 bg-white p-16 lg:flex"
         style={{ borderRight: '1px solid #f0f0f0', position: 'sticky', top: 0, height: '100vh', flexShrink: 0 }}
@@ -245,10 +271,10 @@ export default function PublicReport() {
         </FadeUp>
         <FadeUp delay={0.35} className="w-full max-w-xs space-y-3">
           {[
-            { icon: '📡', text: 'Reports go directly to LGU responders' },
+            { icon: '📡', text: 'AI validation extracts emergency severity' },
+            { icon: '🚨', text: 'Real-time alert toasts sent to LGU dashboard' },
             { icon: '📸', text: 'Attach photos as proof of the incident' },
             { icon: '📍', text: 'Share GPS location for faster response' },
-            { icon: '🔒', text: 'No account required — report anonymously' },
           ].map(({ icon, text }) => (
             <div key={text} className="flex items-center gap-3 text-xs text-gray-500">
               <span className="text-base">{icon}</span>
@@ -265,7 +291,6 @@ export default function PublicReport() {
       <div className="flex flex-1 items-start justify-center overflow-y-auto px-6 py-12" style={{ height: '100vh' }}>
         <div className="w-full max-w-[520px]">
 
-          {/* Mobile logo */}
           <motion.div
             className="mb-8 flex flex-col items-center gap-2 lg:hidden"
             initial={{ opacity: 0, y: -12 }}
@@ -277,7 +302,7 @@ export default function PublicReport() {
 
           <FadeUp delay={0.1} className="mb-6">
             <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Report an Incident</h2>
-            <p className="mt-1.5 text-sm text-gray-400">Fill in the details below. All reports are reviewed by LGU responders.</p>
+            <p className="mt-1.5 text-sm text-gray-400">Fill in the details below. All reports are AI-analyzed and alerted to LGU responders.</p>
           </FadeUp>
 
           <motion.form
@@ -318,7 +343,6 @@ export default function PublicReport() {
                   ))}
                 </div>
 
-                {/* Other — specify input */}
                 <AnimatePresence>
                   {disasterType === 'other' && (
                     <motion.div
@@ -406,20 +430,18 @@ export default function PublicReport() {
               />
             </FadeUp>
 
-            {/* ── Photo upload zone ── */}
+            {/* Photo upload zone */}
             <FadeUp delay={0.36}>
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
                   Proof Photos <span className="font-normal normal-case text-gray-300">(up to {MAX_IMAGES})</span>
                 </label>
 
-                {/* Hidden inputs */}
                 <input ref={browseRef} type="file" accept="image/*" multiple className="hidden"
                   onChange={(e) => addFiles(e.target.files!)} />
                 <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
                   onChange={(e) => addFiles(e.target.files!)} />
 
-                {/* Drop zone */}
                 {entries.length < MAX_IMAGES && (
                   <motion.div
                     ref={dropRef}
@@ -467,7 +489,6 @@ export default function PublicReport() {
                   </motion.div>
                 )}
 
-                {/* Preview grid with progress */}
                 <AnimatePresence>
                   {entries.length > 0 && (
                     <motion.div
@@ -488,7 +509,6 @@ export default function PublicReport() {
                         >
                           <img src={entry.preview} alt="" className="size-full object-cover" />
 
-                          {/* Upload progress overlay */}
                           <AnimatePresence>
                             {loading && uploadingIndex === i && entry.progress >= 0 && entry.progress < 100 && (
                               <motion.div
@@ -500,7 +520,6 @@ export default function PublicReport() {
                               >
                                 <CloudUpload size={16} className="text-white" />
                                 <span className="text-[10px] font-bold text-white">{entry.progress}%</span>
-                                {/* Progress bar */}
                                 <div className="w-10 overflow-hidden rounded-full" style={{ height: 3, background: 'rgba(255,255,255,0.3)' }}>
                                   <motion.div
                                     className="h-full rounded-full bg-white"
@@ -513,7 +532,6 @@ export default function PublicReport() {
                             )}
                           </AnimatePresence>
 
-                          {/* Uploaded checkmark */}
                           <AnimatePresence>
                             {entry.uploaded && (
                               <motion.div
@@ -527,7 +545,6 @@ export default function PublicReport() {
                             )}
                           </AnimatePresence>
 
-                          {/* Remove button */}
                           {!loading && (
                             <button
                               type="button"
@@ -586,7 +603,7 @@ export default function PublicReport() {
                 {loading
                   ? uploadingIndex !== null
                     ? `Uploading photo ${uploadingIndex + 1} of ${entries.length}…`
-                    : 'Submitting…'
+                    : 'AI Analyzing & Submitting…'
                   : 'Submit Report'}
               </Button>
             </FadeUp>

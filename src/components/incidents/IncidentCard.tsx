@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '@/components/shared/StatusBadge'
 import ProofCarousel from '@/components/incidents/ProofCarousel'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
+import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
 import { updateIncidentStatus } from '@/services/incidents.service'
 import { updateIncident } from '@/redux/slices/incidentSlice'
 import { useDispatch } from 'react-redux'
 import type { Incident } from '@/types/incident'
-import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye } from 'lucide-react'
+import type { ResponseAgency } from '@/types/responseAgency'
+import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2 } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',
@@ -21,10 +23,12 @@ function ActionMenu({
   currentStatus,
   onStatusChange,
   onViewDetails,
+  onOpenAssignModal,
 }: {
   currentStatus: Incident['status']
   onStatusChange: (status: Incident['status']) => void
   onViewDetails: () => void
+  onOpenAssignModal: () => void
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -61,7 +65,7 @@ function ActionMenu({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 z-40 mt-1 w-44 origin-top-right rounded-md bg-white p-1 shadow-xl border border-gray-200"
+            className="absolute right-0 z-40 mt-1 w-48 origin-top-right rounded-md bg-white p-1 shadow-xl border border-gray-200"
           >
             {/* View Full Details Option */}
             <button
@@ -74,6 +78,19 @@ function ActionMenu({
             >
               <Eye size={13} className="text-gray-500" />
               View Full Details
+            </button>
+
+            {/* Assign Agency Option */}
+            <button
+              type="button"
+              onClick={() => {
+                onOpenAssignModal()
+                setOpen(false)
+              }}
+              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
+            >
+              <Navigation size={13} className="text-blue-600" />
+              Assign Agency (AI Route)
             </button>
 
             <div className="my-1 border-t border-gray-100" />
@@ -104,10 +121,19 @@ function ActionMenu({
 export default function IncidentCard({ incident }: { incident: Incident }) {
   const dispatch = useDispatch()
   const [showModal, setShowModal] = useState(false)
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [assignedAgencyName, setAssignedAgencyName] = useState<string | null>(
+    incident.status === 'responding' ? 'BFP Labangon Fire Sub-Station' : null
+  )
 
   const handleStatusChange = async (status: Incident['status']) => {
     await updateIncidentStatus(incident.id, status)
     dispatch(updateIncident({ ...incident, status }))
+  }
+
+  const handleAssignAgency = async (_id: string, agency: ResponseAgency) => {
+    setAssignedAgencyName(agency.name)
+    await handleStatusChange('responding')
   }
 
   return (
@@ -130,12 +156,30 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
               )}
             </div>
           </div>
+
           <div className="flex items-center gap-2">
+            {assignedAgencyName ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1 text-[11px] font-extrabold text-blue-800 border border-blue-200">
+                <Building2 size={11} className="text-blue-600 shrink-0" />
+                <span>{assignedAgencyName}</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAssignModal(true)}
+                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition-colors border border-blue-200"
+              >
+                <Navigation size={11} /> Assign Unit
+              </button>
+            )}
+
             <StatusBadge status={incident.status} />
+
             <ActionMenu
               currentStatus={incident.status}
               onStatusChange={handleStatusChange}
               onViewDetails={() => setShowModal(true)}
+              onOpenAssignModal={() => setShowAssignModal(true)}
             />
           </div>
         </div>
@@ -167,6 +211,14 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
           incident={incident}
           onClose={() => setShowModal(false)}
           onStatusChange={(_id, status) => handleStatusChange(status)}
+        />
+      )}
+
+      {showAssignModal && (
+        <AgencyAssignModal
+          incident={incident}
+          onClose={() => setShowAssignModal(false)}
+          onAssign={handleAssignAgency}
         />
       )}
     </>

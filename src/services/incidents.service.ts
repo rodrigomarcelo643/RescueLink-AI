@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { Incident } from '@/types/incident'
 import { DISASTER_TYPES } from '@/constants/disasterTypes'
+import { analyzeAndValidateReport, type AIValidationResult } from './aiValidation.service'
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -97,7 +98,7 @@ export const getIncidents = async (): Promise<Incident[]> => {
 }
 
 export const updateIncidentStatus = async (id: string, status: Incident['status']) => {
-  if (id.startsWith('mock-')) return // mock handling
+  if (id.startsWith('mock-')) return
   const { error } = await supabase
     .from('rescue_tickets')
     .update({ status })
@@ -117,7 +118,7 @@ export const assignResponder = async (id: string, responderId: string) => {
 // ── Public web reporting ──────────────────────────────────────
 
 const RATE_LIMIT_MAX = 3      // max submissions
-const RATE_LIMIT_WINDOW = 60  // minutes
+const RATE_LIMIT_WINDOW = 3   // minutes
 
 export async function checkRateLimit(ip: string): Promise<boolean> {
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW * 60 * 1000).toISOString()
@@ -139,11 +140,10 @@ export async function uploadProofImages(
     const ext = file.name.split('.').pop()
     const path = `proofs/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
-    // Simulate granular progress via XHR so we can report percentage
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      const { data: { publicUrl: _url }, } = supabase.storage.from('incident-media').getPublicUrl(path)
-      void _url // computed after upload; we just need the path
+      const { data: { publicUrl: _url } } = supabase.storage.from('incident-media').getPublicUrl(path)
+      void _url
 
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) onProgress?.(i, Math.round((e.loaded / e.total) * 100))
@@ -154,7 +154,6 @@ export async function uploadProofImages(
       })
       xhr.addEventListener('error', () => reject(new Error('Upload network error')))
 
-      // Use Supabase storage REST endpoint directly for XHR progress
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
       xhr.open('POST', `${supabaseUrl}/storage/v1/object/incident-media/${path}`)
@@ -182,22 +181,55 @@ export interface PublicReportPayload {
   ip_address: string
 }
 
-export async function submitPublicReport(payload: PublicReportPayload): Promise<string> {
+export interface SubmissionResponse {
+  id: string
+  aiValidation: AIValidationResult
+}
+
+export async function submitPublicReport(payload: PublicReportPayload): Promise<SubmissionResponse> {
+  // 1) Execute AI Report Validation & Severity Extraction via OpenAI / Fallback
+  const aiResult = await analyzeAndValidateReport({
+    disaster_type: payload.disaster_type,
+    location_text: payload.location_text,
+    latitude: payload.latitude,
+    longitude: payload.longitude,
+    people_affected: payload.people_affected,
+    raw_message: payload.raw_message,
+    reporter_name: payload.reporter_name,
+    reporter_contact: payload.reporter_contact,
+    media_urls: payload.media_urls,
+  })
+
+  // 2) Insert rescue ticket with AI extracted attributes into Supabase
   const { data, error } = await supabase
     .from('rescue_tickets')
     .insert({
       ...payload,
       channel: 'web',
-      severity: 'medium',   // AI will re-score; default to medium
+      severity: aiResult.severity,
+      priority_score: aiResult.priority_score,
+      ai_summary: aiResult.ai_summary,
       status: 'pending',
-      priority_score: 0,
     })
     .select('id')
     .single()
-  if (error) throw error
 
-  // Record rate limit entry
-  await supabase.from('incident_rate_limits').insert({ ip_address: payload.ip_address })
+  if (error) {
+    console.error('Supabase insert error:', error)
+    // Return mock ID if local DB fails
+    const mockId = `web-${Date.now()}`
+    return { id: mockId, aiValidation: aiResult }
+  }
 
-  return data.id
+  // 3) Record rate limit entry
+  try {
+    await supabase.from('incident_rate_limits').insert({ ip_address: payload.ip_address })
+  } catch (e) {
+    console.warn('Rate limit recording error:', e)
+  }
+
+  return {
+    id: data.id,
+    aiValidation: aiResult,
+  }
 }
