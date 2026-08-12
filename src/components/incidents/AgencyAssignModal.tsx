@@ -6,8 +6,8 @@ import type { ResponseAgency } from '@/types/responseAgency'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
 import { CEBU_RESPONSE_AGENCIES_SEED } from '@/services/responseAgencies.service'
 import {
-  X, Sparkles, Send, MapPin, Building2, Phone,
-  Navigation, ShieldAlert, CheckCircle2, Check
+  X, Sparkles, Send, Building2, Phone,
+  Navigation, Check
 } from 'lucide-react'
 
 interface AgencyAssignModalProps {

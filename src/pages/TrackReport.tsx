@@ -47,7 +47,7 @@ export default function TrackReport() {
   const [unitArrived, setUnitArrived] = useState(false)
 
   // Live ETA & Distance states
-  const [calcDistance, setCalcDistance] = useState<number | null>(null)
+  const [_calcDistance, setCalcDistance] = useState<number | null>(null)
   const [calcEta, setCalcEta] = useState<number | null>(null)
 
   const trackUrl = `${window.location.origin}/track/${id}`

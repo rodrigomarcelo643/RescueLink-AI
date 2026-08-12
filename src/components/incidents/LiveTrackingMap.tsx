@@ -15,6 +15,8 @@ function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+declare const google: any
+
 // Stable Google Maps Directions Overlay
 function GoogleMapDirectionsOverlay({
   originLat,
@@ -63,11 +65,11 @@ function GoogleMapDirectionsOverlay({
         destination: { lat: destLat, lng: destLng },
         travelMode: google.maps.TravelMode.DRIVING,
       },
-      (result, status) => {
+      (result: any, status: any) => {
         if (status === google.maps.DirectionsStatus.OK && result && result.routes[0]) {
           directionsRenderer.setDirections(result)
 
-          const path = result.routes[0].overview_path.map((pt) => ({
+          const path = result.routes[0].overview_path.map((pt: any) => ({
             lat: pt.lat(),
             lng: pt.lng(),
           }))
@@ -108,7 +110,7 @@ export default function LiveTrackingMap({
   incidentLng,
   disasterType,
   locationText,
-  severity,
+  severity: _severity,
   status,
   responder,
   onCalculated,

@@ -7,7 +7,7 @@ import ProofCarousel from '@/components/incidents/ProofCarousel'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
-import { MapPin, Users, Clock, Radio, User, Phone, MoreVertical, Eye, Navigation, Building2, Map, CheckCircle2, Lock } from 'lucide-react'
+import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2, Map, CheckCircle2, Lock } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',

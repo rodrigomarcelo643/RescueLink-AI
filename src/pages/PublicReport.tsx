@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   AlertTriangle, MapPin, Users, FileText, Phone, User,
-  LocateFixed, X, CloudUpload, CheckCircle, Camera, ShieldAlert, Sparkles,
+  LocateFixed, X, CloudUpload, CheckCircle, Camera, Sparkles,
 } from 'lucide-react'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import { Button } from '@/components/ui/button'
