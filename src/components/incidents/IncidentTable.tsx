@@ -16,8 +16,8 @@ const SEVERITY_DOT: Record<string, string> = {
   critical: '#b91c1c',
 }
 
-function getCategoryMatchedAgencyName(disasterType: string): string {
-  const dt = disasterType.toLowerCase()
+function getCategoryMatchedAgencyName(disasterType?: string): string {
+  const dt = (disasterType || '').toLowerCase()
   if (dt.includes('landslide') || dt.includes('guho') || dt.includes('soil')) return 'CCDRRMO Landslide Unit'
   if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury')) return 'Red Cross Medical Unit'
   if (dt.includes('flood') || dt.includes('baha') || dt.includes('water')) return 'Coast Guard & CCDRRMO Flood Unit'

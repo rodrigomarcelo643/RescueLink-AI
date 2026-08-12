@@ -19,8 +19,8 @@ const SEVERITY_DOT: Record<string, string> = {
   critical: '#b91c1c',
 }
 
-function getCategoryMatchedAgencyName(disasterType: string): string {
-  const dt = disasterType.toLowerCase()
+function getCategoryMatchedAgencyName(disasterType?: string): string {
+  const dt = (disasterType || '').toLowerCase()
   if (dt.includes('landslide') || dt.includes('guho') || dt.includes('soil')) return 'CCDRRMO Landslide Unit'
   if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury')) return 'Red Cross Medical Unit'
   if (dt.includes('flood') || dt.includes('baha') || dt.includes('water')) return 'Coast Guard & CCDRRMO Flood Unit'
@@ -156,12 +156,12 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
   const [modalTab, setModalTab] = useState<'details' | 'map'>('details')
   const [showAssignModal, setShowAssignModal] = useState(false)
 
-  const matchedAgency = getCategoryMatchedAgencyName(incident.disaster_type)
+  const matchedAgency = getCategoryMatchedAgencyName(incident?.disaster_type)
   const [assignedAgencyName, setAssignedAgencyName] = useState<string | null>(
-    incident.status === 'responding' ? matchedAgency : null
+    incident?.status === 'responding' ? matchedAgency : null
   )
 
-  const isClosedOrRescued = incident.status === 'closed' || incident.status === 'rescued'
+  const isClosedOrRescued = incident?.status === 'closed' || incident?.status === 'rescued'
 
   const handleStatusChange = async (status: Incident['status']) => {
     await updateIncidentStatus(incident.id, status)
@@ -187,13 +187,13 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
           <div className="flex items-start gap-2.5 cursor-pointer" onClick={() => openDetailsModal('details')}>
             <span
               className="mt-1.5 size-2 shrink-0 rounded-full"
-              style={{ background: SEVERITY_DOT[incident.severity] ?? '#6b7280' }}
+              style={{ background: SEVERITY_DOT[incident?.severity] ?? '#6b7280' }}
             />
             <div>
               <p className="text-sm font-extrabold capitalize text-gray-900 hover:text-red-700 transition-colors">
-                {incident.disaster_type} — {incident.location_text}
+                {incident?.disaster_type} — {incident?.location_text}
               </p>
-              {incident.ai_summary && (
+              {incident?.ai_summary && (
                 <p className="mt-0.5 text-xs text-gray-400">{incident.ai_summary}</p>
               )}
             </div>
@@ -215,10 +215,10 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
               </button>
             ) : null}
 
-            <StatusBadge status={incident.status} />
+            <StatusBadge status={incident?.status} />
 
             <ActionMenu
-              currentStatus={incident.status}
+              currentStatus={incident?.status}
               onStatusChange={handleStatusChange}
               onViewDetails={() => openDetailsModal('details')}
               onViewMap={() => openDetailsModal('map')}
@@ -229,20 +229,20 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
 
         {/* Meta */}
         <div className="flex flex-wrap gap-3 text-[11px] text-gray-400">
-          <span className="flex items-center gap-1"><MapPin size={10} /> {incident.location_text}</span>
-          {incident.people_affected && (
+          <span className="flex items-center gap-1"><MapPin size={10} /> {incident?.location_text}</span>
+          {incident?.people_affected && (
             <span className="flex items-center gap-1"><Users size={10} /> {incident.people_affected} affected</span>
           )}
-          <span className="flex items-center gap-1"><Radio size={10} /> {incident.channel}</span>
-          <span className="flex items-center gap-1"><Clock size={10} /> {new Date(incident.created_at).toLocaleString()}</span>
-          <span className={`font-semibold capitalize ${SEVERITY_COLOR[incident.severity]}`}>{incident.severity}</span>
-          {incident.reporter_name && (
+          <span className="flex items-center gap-1"><Radio size={10} /> {incident?.channel}</span>
+          <span className="flex items-center gap-1"><Clock size={10} /> {new Date(incident?.created_at || Date.now()).toLocaleString()}</span>
+          <span className={`font-semibold capitalize ${SEVERITY_COLOR[incident?.severity || 'low']}`}>{incident?.severity}</span>
+          {incident?.reporter_name && (
             <span className="flex items-center gap-1"><User size={10} /> {incident.reporter_name}</span>
           )}
         </div>
 
         {/* Proof images */}
-        {incident.media_urls?.length > 0 && (
+        {incident?.media_urls?.length > 0 && (
           <div className="pt-1">
             <ProofCarousel urls={incident.media_urls} />
           </div>

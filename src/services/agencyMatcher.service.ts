@@ -9,8 +9,8 @@ export interface AgencyMatchResult {
   aiReason: string
 }
 
-function getLocalCategoryForDisaster(disasterType: string): ResponseAgency['category'] {
-  const dt = disasterType.toLowerCase()
+function getLocalCategoryForDisaster(disasterType?: string): ResponseAgency['category'] {
+  const dt = (disasterType || '').toLowerCase()
   if (dt.includes('fire') || dt.includes('sunog')) return 'fire'
   if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury') || dt.includes('trauma') || dt.includes('health')) return 'medical'
   if (dt.includes('police') || dt.includes('crime') || dt.includes('gulo') || dt.includes('security')) return 'police'
@@ -19,21 +19,21 @@ function getLocalCategoryForDisaster(disasterType: string): ResponseAgency['cate
 }
 
 function matchLocally(incident: Incident, agencies: ResponseAgency[]): AgencyMatchResult {
-  const dtLower = (incident.disaster_type || '').toLowerCase()
-  const locLower = (incident.location_text || '').toLowerCase()
+  const dtLower = (incident?.disaster_type || '').toLowerCase()
+  const locLower = (incident?.location_text || '').toLowerCase()
   const isLabangon = locLower.includes('labangon') || locLower.includes('katipunan') || locLower.includes('banawa')
 
-  const category = getLocalCategoryForDisaster(incident.disaster_type)
+  const category = getLocalCategoryForDisaster(incident?.disaster_type)
 
   // Specialized Keyword Overrides
   let chosen: ResponseAgency | undefined
 
   if (dtLower.includes('landslide') || dtLower.includes('guho') || dtLower.includes('soil')) {
-    chosen = agencies.find((a) => a.id === 'agency-cebu-003' || a.name.toLowerCase().includes('landslide'))
+    chosen = agencies.find((a) => a.id === 'agency-cebu-003' || (a.name || '').toLowerCase().includes('landslide'))
   } else if (dtLower.includes('medical') || dtLower.includes('sugat') || dtLower.includes('injury')) {
     chosen = agencies.find((a) => a.id === 'agency-cebu-005' || a.category === 'medical')
   } else if (dtLower.includes('flood') || dtLower.includes('baha') || dtLower.includes('water')) {
-    chosen = agencies.find((a) => a.id === 'agency-cebu-007' || a.name.toLowerCase().includes('flood'))
+    chosen = agencies.find((a) => a.id === 'agency-cebu-007' || (a.name || '').toLowerCase().includes('flood'))
   } else if (dtLower.includes('fire') || dtLower.includes('sunog')) {
     chosen = agencies.find((a) => a.id === 'agency-cebu-001' || a.category === 'fire')
   } else if (dtLower.includes('police') || dtLower.includes('crime')) {
@@ -49,7 +49,7 @@ function matchLocally(incident: Incident, agencies: ResponseAgency[]): AgencyMat
   // Labangon proximity adjustment
   const distance = isLabangon && (chosen.address || '').toLowerCase().includes('labangon') ? 0.6 : 1.8
   const eta = Math.max(2, Math.round((distance / 30) * 60))
-  const reason = `AI Category Match: Assigned ${chosen.name} (${distance} km away in ${isLabangon ? 'Labangon' : 'Cebu City'}) specifically tailored for ${incident.disaster_type} emergency.`
+  const reason = `AI Category Match: Assigned ${chosen.name} (${distance} km away in ${isLabangon ? 'Labangon' : 'Cebu City'}) specifically tailored for ${incident?.disaster_type || 'emergency'} emergency.`
 
   return {
     agency: chosen,
@@ -66,6 +66,10 @@ export async function matchNearestAgency(
   const agencies = agenciesList && agenciesList.length > 0 ? agenciesList : CEBU_RESPONSE_AGENCIES_SEED
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
 
+  if (!incident) {
+    return matchLocally(incident, agencies)
+  }
+
   if (!apiKey || apiKey.includes('<key>') || !apiKey.startsWith('sk-')) {
     return matchLocally(incident, agencies)
   }
@@ -80,9 +84,9 @@ CRITICAL MANDATE: Match the emergency agency category directly to the disaster t
 - Police / Crime -> Assign PNP Police Station (Category: police)
 
 Incident Details:
-- Disaster Type: ${incident.disaster_type}
-- Location: ${incident.location_text}
-- Severity: ${incident.severity}
+- Disaster Type: ${incident.disaster_type || 'General Emergency'}
+- Location: ${incident.location_text || 'Cebu City'}
+- Severity: ${incident.severity || 'high'}
 - Affected Count: ${incident.people_affected ?? 'Unspecified'}
 
 Available Emergency Response Agencies in Cebu City / Labangon:
@@ -133,7 +137,7 @@ Return ONLY JSON format strictly matching schema:
       agency: targetAgency,
       distanceKm: typeof parsed.distance_km === 'number' ? parsed.distance_km : 0.8,
       estimatedTimeMin: typeof parsed.estimated_time_min === 'number' ? parsed.estimated_time_min : 5,
-      aiReason: parsed.ai_reason || `OpenAI Category Match: Assigned ${targetAgency.name} specifically for ${incident.disaster_type}.`,
+      aiReason: parsed.ai_reason || `OpenAI Category Match: Assigned ${targetAgency.name} specifically for ${incident.disaster_type || 'emergency'}.`,
     }
   } catch (e) {
     console.warn('[Agency Matcher] OpenAI error:', e)
