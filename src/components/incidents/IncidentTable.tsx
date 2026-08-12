@@ -7,13 +7,22 @@ import ProofCarousel from '@/components/incidents/ProofCarousel'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
-import { MapPin, Users, Clock, Radio, User, Phone, MoreVertical, Eye, Navigation, Building2, Map } from 'lucide-react'
+import { MapPin, Users, Clock, Radio, User, Phone, MoreVertical, Eye, Navigation, Building2, Map, CheckCircle2, Lock } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',
   medium: '#f59e0b',
   high: '#f97316',
   critical: '#b91c1c',
+}
+
+function getCategoryMatchedAgencyName(disasterType: string): string {
+  const dt = disasterType.toLowerCase()
+  if (dt.includes('landslide') || dt.includes('guho') || dt.includes('soil')) return 'CCDRRMO Landslide Unit'
+  if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury')) return 'Red Cross Medical Unit'
+  if (dt.includes('flood') || dt.includes('baha') || dt.includes('water')) return 'Coast Guard & CCDRRMO Flood Unit'
+  if (dt.includes('police') || dt.includes('crime')) return 'PNP Station 10 Labangon'
+  return 'BFP Labangon Fire Sub-Station'
 }
 
 interface IncidentTableProps {
@@ -48,6 +57,7 @@ function ActionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const isClosedOrRescued = currentStatus === 'closed' || currentStatus === 'rescued'
   const statuses: Incident['status'][] = ['pending', 'responding', 'rescued', 'closed']
   const available = statuses.filter((s) => s !== currentStatus)
 
@@ -98,18 +108,25 @@ function ActionMenu({
               Live Track Map
             </button>
 
-            {/* Assign Agency Option */}
-            <button
-              type="button"
-              onClick={() => {
-                onOpenAssignModal()
-                setOpen(false)
-              }}
-              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
-            >
-              <Navigation size={13} className="text-blue-600" />
-              Assign Agency (AI Route)
-            </button>
+            {/* Assign Agency Option (Disabled when closed or rescued) */}
+            {!isClosedOrRescued ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenAssignModal()
+                  setOpen(false)
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
+              >
+                <Navigation size={13} className="text-blue-600" />
+                Assign Agency (AI Route)
+              </button>
+            ) : (
+              <div className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed flex items-center gap-2">
+                <Lock size={12} className="text-gray-300" />
+                Assignment Locked ({currentStatus})
+              </div>
+            )}
 
             <div className="my-1 border-t border-gray-100" />
 
@@ -174,7 +191,9 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
           </thead>
           <tbody className="divide-y divide-gray-100">
             {incidents.map((incident) => {
-              const assignedName = assignments[incident.id] || (incident.status === 'responding' ? 'BFP Labangon Fire Sub-Station' : null)
+              const matchedAgency = getCategoryMatchedAgencyName(incident.disaster_type)
+              const assignedName = assignments[incident.id] || (incident.status === 'responding' ? matchedAgency : null)
+              const isClosedOrRescued = incident.status === 'closed' || incident.status === 'rescued'
 
               return (
                 <tr key={incident.id} className="hover:bg-gray-50/60 transition-colors">
@@ -222,11 +241,15 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
                   </td>
 
                   {/* Assigned Agency */}
-                  <td className="px-4 py-3.5 align-top max-w-[160px]">
+                  <td className="px-4 py-3.5 align-top max-w-[170px]">
                     {assignedName ? (
                       <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[10px] font-extrabold text-blue-800 border border-blue-200">
                         <Building2 size={11} className="text-blue-600 shrink-0" />
                         <span className="truncate">{assignedName}</span>
+                      </span>
+                    ) : isClosedOrRescued ? (
+                      <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
+                        <CheckCircle2 size={10} className="text-emerald-600" /> Operation Done
                       </span>
                     ) : (
                       <button

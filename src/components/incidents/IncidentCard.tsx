@@ -10,7 +10,7 @@ import { updateIncident } from '@/redux/slices/incidentSlice'
 import { useDispatch } from 'react-redux'
 import type { Incident } from '@/types/incident'
 import type { ResponseAgency } from '@/types/responseAgency'
-import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2 } from 'lucide-react'
+import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2, Map, Lock } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',
@@ -19,15 +19,26 @@ const SEVERITY_DOT: Record<string, string> = {
   critical: '#b91c1c',
 }
 
+function getCategoryMatchedAgencyName(disasterType: string): string {
+  const dt = disasterType.toLowerCase()
+  if (dt.includes('landslide') || dt.includes('guho') || dt.includes('soil')) return 'CCDRRMO Landslide Unit'
+  if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury')) return 'Red Cross Medical Unit'
+  if (dt.includes('flood') || dt.includes('baha') || dt.includes('water')) return 'Coast Guard & CCDRRMO Flood Unit'
+  if (dt.includes('police') || dt.includes('crime')) return 'PNP Station 10 Labangon'
+  return 'BFP Labangon Fire Sub-Station'
+}
+
 function ActionMenu({
   currentStatus,
   onStatusChange,
   onViewDetails,
+  onViewMap,
   onOpenAssignModal,
 }: {
   currentStatus: Incident['status']
   onStatusChange: (status: Incident['status']) => void
   onViewDetails: () => void
+  onViewMap: () => void
   onOpenAssignModal: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -43,6 +54,7 @@ function ActionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const isClosedOrRescued = currentStatus === 'closed' || currentStatus === 'rescued'
   const statuses: Incident['status'][] = ['pending', 'responding', 'rescued', 'closed']
   const available = statuses.filter((s) => s !== currentStatus)
 
@@ -80,18 +92,38 @@ function ActionMenu({
               View Full Details
             </button>
 
-            {/* Assign Agency Option */}
+            {/* Live Track Map Option */}
             <button
               type="button"
               onClick={() => {
-                onOpenAssignModal()
+                onViewMap()
                 setOpen(false)
               }}
-              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
+              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition-colors flex items-center gap-2"
             >
-              <Navigation size={13} className="text-blue-600" />
-              Assign Agency (AI Route)
+              <Map size={13} className="text-emerald-600" />
+              Live Track Map
             </button>
+
+            {/* Assign Agency Option (Disabled when closed or rescued) */}
+            {!isClosedOrRescued ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenAssignModal()
+                  setOpen(false)
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
+              >
+                <Navigation size={13} className="text-blue-600" />
+                Assign Agency (AI Route)
+              </button>
+            ) : (
+              <div className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed flex items-center gap-2">
+                <Lock size={12} className="text-gray-300" />
+                Assignment Locked ({currentStatus})
+              </div>
+            )}
 
             <div className="my-1 border-t border-gray-100" />
 
@@ -121,10 +153,15 @@ function ActionMenu({
 export default function IncidentCard({ incident }: { incident: Incident }) {
   const dispatch = useDispatch()
   const [showModal, setShowModal] = useState(false)
+  const [modalTab, setModalTab] = useState<'details' | 'map'>('details')
   const [showAssignModal, setShowAssignModal] = useState(false)
+
+  const matchedAgency = getCategoryMatchedAgencyName(incident.disaster_type)
   const [assignedAgencyName, setAssignedAgencyName] = useState<string | null>(
-    incident.status === 'responding' ? 'BFP Labangon Fire Sub-Station' : null
+    incident.status === 'responding' ? matchedAgency : null
   )
+
+  const isClosedOrRescued = incident.status === 'closed' || incident.status === 'rescued'
 
   const handleStatusChange = async (status: Incident['status']) => {
     await updateIncidentStatus(incident.id, status)
@@ -136,13 +173,18 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
     await handleStatusChange('responding')
   }
 
+  const openDetailsModal = (tab: 'details' | 'map' = 'details') => {
+    setModalTab(tab)
+    setShowModal(true)
+  }
+
   return (
     <>
       <div className="flex flex-col gap-3 bg-white p-4" style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}>
 
         {/* Top row */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2.5 cursor-pointer" onClick={() => setShowModal(true)}>
+          <div className="flex items-start gap-2.5 cursor-pointer" onClick={() => openDetailsModal('details')}>
             <span
               className="mt-1.5 size-2 shrink-0 rounded-full"
               style={{ background: SEVERITY_DOT[incident.severity] ?? '#6b7280' }}
@@ -163,7 +205,7 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
                 <Building2 size={11} className="text-blue-600 shrink-0" />
                 <span>{assignedAgencyName}</span>
               </span>
-            ) : (
+            ) : !isClosedOrRescued ? (
               <button
                 type="button"
                 onClick={() => setShowAssignModal(true)}
@@ -171,14 +213,15 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
               >
                 <Navigation size={11} /> Assign Unit
               </button>
-            )}
+            ) : null}
 
             <StatusBadge status={incident.status} />
 
             <ActionMenu
               currentStatus={incident.status}
               onStatusChange={handleStatusChange}
-              onViewDetails={() => setShowModal(true)}
+              onViewDetails={() => openDetailsModal('details')}
+              onViewMap={() => openDetailsModal('map')}
               onOpenAssignModal={() => setShowAssignModal(true)}
             />
           </div>
@@ -209,6 +252,7 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
       {showModal && (
         <IncidentDetailsModal
           incident={incident}
+          initialTab={modalTab}
           onClose={() => setShowModal(false)}
           onStatusChange={(_id, status) => handleStatusChange(status)}
         />
