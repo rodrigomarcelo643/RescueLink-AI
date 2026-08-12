@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, AlertTriangle, Heart, Users, Globe, Settings, MessageSquare, Map, Building2,
+  LayoutDashboard, AlertTriangle, Heart, Users, Globe, Settings, MessageSquare, Map, Building2, ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/context/AuthContext'
@@ -21,6 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/donations',   label: 'Donations',        icon: Heart,          roles: ['lgu'], group: 'Operations'  },
   { to: '/volunteers',  label: 'Volunteers',       icon: Users,          roles: ['lgu'], group: 'Operations'  },
   { to: '/evacuation-centers', label: 'Evacuation Centers', icon: Building2, roles: ['lgu'], group: 'Operations' },
+  { to: '/response-agencies',  label: 'Response Agencies',  icon: ShieldCheck, roles: ['lgu'], group: 'Operations' },
   { to: '/public',     label: 'Public View',icon: Globe,           roles: ['lgu'], group: 'Overview'    },
   { to: '/settings',   label: 'Settings',   icon: Settings,        roles: ['lgu'], group: 'Account'     },
 

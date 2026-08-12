@@ -20,6 +20,7 @@ import MonitoringMap from '@/pages/MonitoringMap'
 import FbMonitor from '@/pages/FbMonitor'
 import MessengerTest from '@/pages/MessengerTest'
 import EvacuationCenters from '@/pages/EvacuationCenters'
+import ResponseAgencies from '@/pages/ResponseAgencies'
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { user, role, loading } = useAuth()
@@ -62,6 +63,7 @@ export default function AppRouter() {
           <Route path="/donations" element={<Donations />} />
           <Route path="/volunteers" element={<Volunteers />} />
           <Route path="/evacuation-centers" element={<EvacuationCenters />} />
+          <Route path="/response-agencies" element={<ResponseAgencies />} />
           <Route path="/map" element={<MonitoringMap />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

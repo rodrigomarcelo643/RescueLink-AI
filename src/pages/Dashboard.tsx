@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useIncidents } from '@/hooks/useIncidents'
 import { useDonations } from '@/hooks/useDonations'
 import { useVolunteers } from '@/hooks/useVolunteers'
+import { useResponseAgencies } from '@/hooks/useResponseAgencies'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import IncidentCard from '@/components/incidents/IncidentCard'
 import IncidentMap from '@/components/incidents/IncidentMap'
 import type { Incident } from '@/types/incident'
+import type { AgencyCategory } from '@/types/responseAgency'
 import {
   AlertTriangle, Heart, Users, CheckCircle, Clock,
-  TrendingUp, Activity, MapPin, ShieldAlert,
+  TrendingUp, Activity, MapPin, ShieldAlert, ShieldCheck, ChevronRight,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -45,19 +48,36 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   )
 }
 
+const AGENCY_CATEGORY_COLOR: Record<AgencyCategory, string> = {
+  fire: '#ef4444', police: '#3b82f6', medical: '#22c55e',
+  rescue: '#f97316', military: '#6b7280', ngo: '#8b5cf6', other: '#9ca3af',
+}
+
 export default function Dashboard() {
   const { items: incidents, loading } = useIncidents()
   const { items: donations } = useDonations()
   const { items: volunteers } = useVolunteers()
+  const { items: agencies } = useResponseAgencies()
   const [selected, setSelected] = useState<Incident | null>(null)
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('week')
+
+  const filtered = useMemo(() => {
+    const now = new Date()
+    const cutoff = new Date(now)
+    if (period === 'day')   cutoff.setDate(now.getDate() - 1)
+    if (period === 'week')  cutoff.setDate(now.getDate() - 7)
+    if (period === 'month') cutoff.setMonth(now.getMonth() - 1)
+    if (period === 'year')  cutoff.setFullYear(now.getFullYear() - 1)
+    return incidents.filter((i) => new Date(i.created_at) >= cutoff)
+  }, [incidents, period])
 
   // ── KPI calculations ──────────────────────────────────────────────────
-  const pending    = incidents.filter((i) => i.status === 'pending').length
-  const responding = incidents.filter((i) => i.status === 'responding').length
-  const rescued    = incidents.filter((i) => i.status === 'rescued').length
-  const closed     = incidents.filter((i) => i.status === 'closed').length
-  const critical   = incidents.filter((i) => i.severity === 'critical').length
-  const high       = incidents.filter((i) => i.severity === 'high').length
+  const pending    = filtered.filter((i) => i.status === 'pending').length
+  const responding = filtered.filter((i) => i.status === 'responding').length
+  const rescued    = filtered.filter((i) => i.status === 'rescued').length
+  const closed     = filtered.filter((i) => i.status === 'closed').length
+  const critical   = filtered.filter((i) => i.severity === 'critical').length
+  const high       = filtered.filter((i) => i.severity === 'high').length
 
   const confirmedDonations = donations.filter((d) => d.status === 'confirmed')
   const totalDonations = confirmedDonations.reduce((s, d) => s + (d.amount ?? 0), 0)
@@ -66,55 +86,97 @@ export default function Dashboard() {
   const availableVols = volunteers.filter((v) => v.is_available).length
   const deployedVols  = volunteers.filter((v) => !v.is_available).length
 
-  const resolutionRate = incidents.length
-    ? Math.round(((rescued + closed) / incidents.length) * 100)
+  const resolutionRate = filtered.length
+    ? Math.round(((rescued + closed) / filtered.length) * 100)
     : 0
 
-  const avgPriority = incidents.length
-    ? Math.round(incidents.reduce((s, i) => s + (i.priority_score ?? 0), 0) / incidents.length)
+  const avgPriority = filtered.length
+    ? Math.round(filtered.reduce((s, i) => s + (i.priority_score ?? 0), 0) / filtered.length)
     : 0
 
   // ── Breakdowns ────────────────────────────────────────────────────────
   const severityCounts = ['critical', 'high', 'medium', 'low'].map((s) => ({
     label: s,
-    count: incidents.filter((i) => i.severity === s).length,
+    count: filtered.filter((i) => i.severity === s).length,
     color: SEVERITY_COLOR[s],
   }))
 
   const channelCounts = ['messenger', 'facebook', 'telegram', 'whatsapp', 'web'].map((c) => ({
     label: c,
-    count: incidents.filter((i) => i.channel === c).length,
+    count: filtered.filter((i) => i.channel === c).length,
     color: CHANNEL_COLOR[c],
   })).filter((c) => c.count > 0)
 
-  // ── Trend: incidents per day (last 7 days) ───────────────────────────
-  const trendData = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
-    const label = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
-    const dateStr = d.toISOString().slice(0, 10)
-    return {
-      date: label,
-      count: incidents.filter((inc) => inc.created_at.slice(0, 10) === dateStr).length,
+  // ── Trend data keyed by period ────────────────────────────────────────
+  const trendData = useMemo(() => {
+    if (period === 'day') {
+      return Array.from({ length: 24 }, (_, i) => {
+        const h = new Date(); h.setMinutes(0, 0, 0); h.setHours(h.getHours() - (23 - i))
+        const label = h.toLocaleTimeString('en-PH', { hour: '2-digit', hour12: true })
+        return {
+          date: label,
+          count: filtered.filter((inc) => {
+            const d = new Date(inc.created_at)
+            return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth()
+              && d.getDate() === h.getDate() && d.getHours() === h.getHours()
+          }).length,
+        }
+      })
     }
-  })
+    if (period === 'week') {
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (6 - i))
+        const dateStr = d.toISOString().slice(0, 10)
+        return {
+          date: d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }),
+          count: filtered.filter((inc) => inc.created_at.slice(0, 10) === dateStr).length,
+        }
+      })
+    }
+    if (period === 'month') {
+      return Array.from({ length: 30 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (29 - i))
+        const dateStr = d.toISOString().slice(0, 10)
+        return {
+          date: d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }),
+          count: filtered.filter((inc) => inc.created_at.slice(0, 10) === dateStr).length,
+        }
+      })
+    }
+    // year — group by month
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(); d.setMonth(d.getMonth() - (11 - i))
+      const y = d.getFullYear(); const m = d.getMonth()
+      return {
+        date: d.toLocaleDateString('en-PH', { month: 'short', year: '2-digit' }),
+        count: filtered.filter((inc) => {
+          const id = new Date(inc.created_at)
+          return id.getFullYear() === y && id.getMonth() === m
+        }).length,
+      }
+    })
+  }, [filtered, period])
 
   // ── Pie data for status ───────────────────────────────────────────────
   const pieData = (['pending', 'responding', 'rescued', 'closed'] as const)
-    .map((s) => ({ name: s, value: incidents.filter((i) => i.status === s).length }))
+    .map((s) => ({ name: s, value: filtered.filter((i) => i.status === s).length }))
     .filter((d) => d.value > 0)
 
   // ── Bar data for severity ─────────────────────────────────────────────
   const barData = ['critical', 'high', 'medium', 'low'].map((s) => ({
     name: s,
-    count: incidents.filter((i) => i.severity === s).length,
+    count: filtered.filter((i) => i.severity === s).length,
     color: SEVERITY_COLOR[s],
   }))
 
-  // ── Recent activity (last 10 incidents sorted by created_at) ─────────
-  const recent = [...incidents].sort(
+  // ── Recent activity ───────────────────────────────────────────────────
+  const recent = [...filtered].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   ).slice(0, 8)
+
+  const PERIOD_LABEL: Record<string, string> = {
+    day: 'Last 24 Hours', week: 'Last 7 Days', month: 'Last 30 Days', year: 'Last 12 Months',
+  }
 
   if (loading) return <LoadingSpinner />
 
@@ -127,16 +189,29 @@ export default function Dashboard() {
           <h1 className="text-lg font-extrabold tracking-tight text-gray-900">Dashboard</h1>
           <p className="mt-0.5 text-sm text-gray-400">Real-time rescue operations overview</p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-[11px] font-semibold text-gray-400">Live</span>
+        <div className="flex items-center gap-3">
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as typeof period)}
+            className="px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 outline-none"
+            style={{ border: '1px solid #e5e7eb', borderRadius: 5, background: '#fff' }}
+          >
+            <option value="day">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+          </select>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[11px] font-semibold text-gray-400">Live</span>
+          </div>
         </div>
       </div>
 
       {/* ── Row 1: Primary KPIs ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: 'Total Incidents', value: incidents.length, icon: AlertTriangle, color: '#b91c1c', sub: `${pending} pending` },
+          { label: 'Total Incidents', value: filtered.length, icon: AlertTriangle, color: '#b91c1c', sub: `${pending} pending` },
           { label: 'Responding',      value: responding,       icon: Activity,      color: '#3b82f6', sub: `${critical} critical` },
           { label: 'Rescued',         value: rescued,          icon: CheckCircle,   color: '#22c55e', sub: `${resolutionRate}% resolution` },
           { label: 'Donations',       value: `₱${totalDonations.toLocaleString()}`, icon: Heart, color: '#ec4899', sub: `${pendingDonations} pending` },
@@ -185,7 +260,7 @@ export default function Dashboard() {
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded bg-white/90 px-2.5 py-1.5"
             style={{ border: '1px solid #e5e7eb', backdropFilter: 'blur(4px)' }}>
             <span className="size-1.5 animate-pulse rounded-full bg-green-500" />
-            <span className="text-[11px] font-semibold text-gray-600">{incidents.filter(i => i.latitude && i.longitude).length} mapped</span>
+            <span className="text-[11px] font-semibold text-gray-600">{filtered.filter(i => i.latitude && i.longitude).length} mapped</span>
           </div>
 
           {/* Severity legend */}
@@ -245,7 +320,7 @@ export default function Dashboard() {
 
         {/* Area chart — incident trend */}
         <div className="bg-white p-4 lg:col-span-2" style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}>
-          <p className="mb-4 text-[11px] font-extrabold uppercase tracking-wide text-gray-400">Incident Trend (Last 7 Days)</p>
+          <p className="mb-4 text-[11px] font-extrabold uppercase tracking-wide text-gray-400">Incident Trend — {PERIOD_LABEL[period]}</p>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
               <defs>
@@ -375,14 +450,88 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Response Agencies ── */}
+      <div className="bg-white p-4" style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={14} style={{ color: '#b91c1c' }} />
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-400">Response Agencies</p>
+            <span className="text-[11px] text-gray-400">{agencies.filter(a => a.is_active).length} active</span>
+          </div>
+          <Link
+            to="/response-agencies"
+            className="flex items-center gap-0.5 text-[11px] font-semibold text-gray-400 hover:text-gray-700"
+          >
+            Manage <ChevronRight size={11} />
+          </Link>
+        </div>
+
+        {agencies.length === 0 ? (
+          <p className="text-xs text-gray-400">No agencies added yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {(['fire', 'police', 'medical', 'rescue', 'military', 'ngo', 'other'] as AgencyCategory[]).map((cat) => {
+              const count = agencies.filter((a) => a.category === cat && a.is_active).length
+              if (count === 0) return null
+              return (
+                <div key={cat} className="flex items-center gap-2.5 rounded p-2.5" style={{ background: '#f9fafb', border: '1px solid #f0f0f0' }}>
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
+                    style={{ background: AGENCY_CATEGORY_COLOR[cat] }}
+                  >
+                    {count}
+                  </span>
+                  <span className="text-xs font-semibold capitalize text-gray-700">{cat}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Agency list preview */}
+        {agencies.length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {agencies.filter(a => a.is_active).slice(0, 5).map((a) => (
+              <div key={a.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: AGENCY_CATEGORY_COLOR[a.category] }}
+                  />
+                  <span className="text-xs font-semibold text-gray-800">{a.name}</span>
+                  <span
+                    className="px-1.5 py-0.5 text-[9px] font-extrabold capitalize"
+                    style={{
+                      borderRadius: 3,
+                      background: `${AGENCY_CATEGORY_COLOR[a.category]}18`,
+                      color: AGENCY_CATEGORY_COLOR[a.category],
+                    }}
+                  >
+                    {a.category}
+                  </span>
+                </div>
+                {(a.contacts ?? []).length > 0 && (
+                  <span className="text-[11px] text-gray-400">{a.contacts[0].value}</span>
+                )}
+              </div>
+            ))}
+            {agencies.filter(a => a.is_active).length > 5 && (
+              <Link to="/response-agencies" className="text-[11px] font-semibold text-gray-400 hover:text-gray-700">
+                +{agencies.filter(a => a.is_active).length - 5} more agencies →
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Recent incidents list */}
       <div>
         <div className="mb-3 flex items-center gap-2">
           <p className="text-sm font-extrabold text-gray-900">Recent Incidents</p>
-          <span className="text-[11px] text-gray-400">{incidents.length} total</span>
+          <span className="text-[11px] text-gray-400">{filtered.length} in period · {incidents.length} total</span>
         </div>
         <div className="flex flex-col gap-2">
-          {incidents.slice(0, 5).map((incident) => (
+          {filtered.slice(0, 5).map((incident) => (
             <IncidentCard key={incident.id} incident={incident} />
           ))}
         </div>
