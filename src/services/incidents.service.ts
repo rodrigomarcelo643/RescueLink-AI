@@ -11,42 +11,42 @@ export const assignAgencyToIncident = async (
   id: string,
   agencyId: string,
   agencyName: string,
-  agencyUsername?: string
+  agencyUsername?: string,
+  status: Incident['status'] = 'pending'
 ) => {
-  // ── 1. Update rescue_tickets ─────────────────────────────────────────────
-  // Try with assigned_agency_id first. If the column is still UUID type (error 42883),
-  // fall back to updating only assigned_agency_name which is TEXT.
+  // ── 1. Update rescue_tickets in Supabase DB ──────────────────────────────
   const fullUpdate = await supabase
     .from('rescue_tickets')
     .update({
       assigned_agency_id: String(agencyId),
       assigned_agency_name: String(agencyName),
-      status: 'pending',
+      assigned_responder_id: String(agencyId),
+      status,
     })
     .eq('id', String(id))
 
   if (fullUpdate.error?.code === '42883') {
-    // UUID column type mismatch — write only the TEXT column
-    console.warn('[assignAgency] assigned_agency_id is UUID type in DB — writing name only')
+    // UUID column type mismatch — write assigned_agency_name and status
+    console.warn('[assignAgency] assigned_agency_id is UUID type in DB — writing name and status')
     const nameOnly = await supabase
       .from('rescue_tickets')
-      .update({ assigned_agency_name: String(agencyName), status: 'pending' })
+      .update({
+        assigned_agency_name: String(agencyName),
+        status,
+      })
       .eq('id', String(id))
     if (nameOnly.error) {
-      // 404 = RLS blocking or row not found — log but don't crash the UI
       console.error('[assignAgency] name-only update failed:', nameOnly.error.code, nameOnly.error.message)
     } else {
       console.log('[assignAgency] assigned_agency_name written OK (UUID column fallback)')
     }
   } else if (fullUpdate.error) {
-    // 404 = RLS blocking — log but don't throw so UI still updates
     console.error('[assignAgency] full update failed:', fullUpdate.error.code, fullUpdate.error.message)
   } else {
     console.log('[assignAgency] rescue_tickets updated OK — id:', id)
   }
 
   // ── 2. Update response_agencies.current_assigned_ticket_id ───────────────
-  // Only attempt by id if agencyId is a real UUID (seed IDs like "agency-cebu-001" will fail)
   if (isUUID(agencyId)) {
     const { error: byIdErr } = await supabase
       .from('response_agencies')
@@ -57,16 +57,13 @@ export const assignAgencyToIncident = async (
     }
   }
 
-  // Always try by username as well (works for both seed and DB-registered agencies)
   const username = agencyUsername || agencyId
   if (username && !isUUID(username)) {
-    // username is a plain string — safe to query
     await supabase
       .from('response_agencies')
       .update({ current_assigned_ticket_id: id })
       .eq('username', username)
   } else if (isUUID(username)) {
-    // agencyUsername is also a UUID — try it too
     await supabase
       .from('response_agencies')
       .update({ current_assigned_ticket_id: id })
