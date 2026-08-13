@@ -230,6 +230,30 @@ export const registerAgencyAccount = async (payload: AgencyRegistrationPayload):
   return localAgency
 }
 
+export const updateAgencyStatus = async (
+  id: string,
+  status: 'available' | 'busy' | 'offline'
+): Promise<ResponseAgency | null> => {
+  const patch = {
+    operational_status: status,
+    is_active: status !== 'offline',
+  }
+
+  const { data, error } = await supabase
+    .from('response_agencies')
+    .update(patch)
+    .eq('id', id)
+    .select('*')
+    .single()
+
+  if (error) {
+    console.warn('Supabase status update error:', error)
+    return null
+  }
+
+  return data as ResponseAgency
+}
+
 export const addResponseAgency = async (data: Omit<ResponseAgency, 'id' | 'created_at'>) => {
   const { error } = await supabase.from('response_agencies').insert(data)
   if (error) throw error
