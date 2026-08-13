@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Incident } from '@/types/incident'
 import type { ResponseAgency } from '@/types/responseAgency'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
-import { CEBU_RESPONSE_AGENCIES_SEED } from '@/services/responseAgencies.service'
+import { getResponseAgencies, CEBU_RESPONSE_AGENCIES_SEED } from '@/services/responseAgencies.service'
+import { assignAgencyToIncident } from '@/services/incidents.service'
 import {
-  X, Sparkles, Send, Building2, Phone,
-  Navigation, Check
+  X, Sparkles, Building2, Phone,
+  Navigation, Check, AlertCircle
 } from 'lucide-react'
 
 interface AgencyAssignModalProps {
@@ -22,6 +23,7 @@ export default function AgencyAssignModal({
   onAssign,
 }: AgencyAssignModalProps) {
   const [aiMatch, setAiMatch] = useState<AgencyMatchResult | null>(null)
+  const [agenciesList, setAgenciesList] = useState<ResponseAgency[]>(CEBU_RESPONSE_AGENCIES_SEED)
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>('')
   const [loadingAi, setLoadingAi] = useState(true)
 
@@ -32,25 +34,40 @@ export default function AgencyAssignModal({
     }
     window.addEventListener('keydown', handleKeyDown)
 
-    setLoadingAi(true)
-    matchNearestAgency(incident).then((res) => {
-      setAiMatch(res)
-      setSelectedAgencyId(res.agency.id)
-      setLoadingAi(false)
+    // Load registered agencies dynamically from DB / service
+    getResponseAgencies().then((list) => {
+      if (list && list.length > 0) setAgenciesList(list)
     })
+
+    setLoadingAi(true)
+    matchNearestAgency(incident)
+      .then((res) => {
+        setAiMatch(res)
+        if (res?.agency?.id) {
+          setSelectedAgencyId(res.agency.id)
+        }
+      })
+      .catch((err) => {
+        console.warn('AI matching skipped:', err)
+      })
+      .finally(() => {
+        setLoadingAi(false)
+      })
 
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [incident, onClose])
 
   if (!incident) return null
 
+  const allAgencies = agenciesList.length > 0 ? agenciesList : CEBU_RESPONSE_AGENCIES_SEED
   const selectedAgency =
-    CEBU_RESPONSE_AGENCIES_SEED.find((a) => a.id === selectedAgencyId) ||
+    allAgencies.find((a) => a.id === selectedAgencyId) ||
     aiMatch?.agency ||
-    CEBU_RESPONSE_AGENCIES_SEED[0]
+    allAgencies[0]
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedAgency) {
+      await assignAgencyToIncident(incident.id, selectedAgency.id, selectedAgency.name, selectedAgency.username || undefined)
       onAssign(incident.id, selectedAgency)
       onClose()
     }
@@ -78,7 +95,7 @@ export default function AgencyAssignModal({
             <div>
               <h2 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
                 <Navigation size={18} className="text-blue-600" />
-                Assign Response Agency
+                {incident.assigned_agency_name ? 'Change Assigned Response Agency' : 'Assign Response Agency'}
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
                 {incident.disaster_type} Incident at {incident.location_text}
@@ -94,78 +111,87 @@ export default function AgencyAssignModal({
 
           <div className="flex flex-col gap-5 p-6">
 
-            {/* 🤖 AI Best Route Suggestion Box */}
-            {loadingAi ? (
-              <div className="p-4 rounded-lg bg-blue-50/60 border border-blue-100 flex items-center justify-center gap-2 text-xs text-blue-700 font-semibold">
-                <span className="size-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                Calculating AI Best Route & Nearest Agency...
-              </div>
-            ) : aiMatch ? (
-              <div className="rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-4.5 text-white shadow-xl border border-blue-500/40 relative">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[11px] font-black uppercase text-blue-300 tracking-wider">
-                    <Sparkles size={13} className="text-blue-400" /> AI Suggested Best Route
-                  </span>
-                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-emerald-600 text-white rounded">
-                    ~{aiMatch.estimatedTimeMin} min ETA ({aiMatch.distanceKm} km)
-                  </span>
+            {/* 🤖 AI Best Route Suggestion Box (Hidden if agency is already assigned) */}
+            {!incident.assigned_agency_name && !incident.assigned_agency_id && (
+              loadingAi ? (
+                <div className="p-4 rounded-lg bg-blue-50/60 border border-blue-100 flex items-center justify-center gap-2 text-xs text-blue-700 font-semibold">
+                  <span className="size-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                  Calculating AI Best Route & Nearest Agency...
                 </div>
-
-                <div className="mt-2.5 flex items-start gap-3">
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-blue-600 text-white font-bold shrink-0">
-                    <Building2 size={18} />
+              ) : aiMatch ? (
+                <div className="rounded-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-4.5 text-white shadow-xl border border-blue-500/40 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-[11px] font-black uppercase text-blue-300 tracking-wider">
+                      <Sparkles size={13} className="text-blue-400" /> AI Suggested Best Route
+                    </span>
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold bg-emerald-600 text-white rounded">
+                      ~{aiMatch.estimatedTimeMin} min ETA ({aiMatch.distanceKm} km)
+                    </span>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-extrabold text-white">
-                      {aiMatch.agency.name}
-                    </h3>
-                    <p className="text-xs text-blue-200/80 mt-0.5">
-                      {aiMatch.agency.address}
-                    </p>
-                    <p className="text-[11px] text-blue-300 mt-1 italic font-medium">
-                      "{aiMatch.aiReason}"
-                    </p>
+
+                  <div className="mt-2.5 flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-600 text-white font-bold shrink-0">
+                      <Building2 size={18} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-extrabold text-white">
+                        {aiMatch.agency.name}
+                      </h3>
+                      <p className="text-xs text-blue-200/80 mt-0.5">
+                        {aiMatch.agency.address}
+                      </p>
+                      <p className="text-[11px] text-blue-300 mt-1 italic font-medium">
+                        "{aiMatch.aiReason}"
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10 text-xs">
+                    <span className="text-[11px] text-blue-200 flex items-center gap-1">
+                      <Phone size={11} /> {aiMatch.agency.contacts?.[0]?.value || 'Hotline 911'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAgencyId(aiMatch.agency.id)}
+                      className={`px-3 py-1 text-xs font-extrabold rounded transition-all flex items-center gap-1 ${
+                        isAiSelected
+                          ? 'bg-emerald-500 text-white shadow-xs'
+                          : 'bg-blue-500 hover:bg-blue-400 text-white'
+                      }`}
+                    >
+                      {isAiSelected ? <Check size={12} /> : null}
+                      {isAiSelected ? 'AI Recommendation Selected' : 'Accept AI Route'}
+                    </button>
                   </div>
                 </div>
-
-                <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10 text-xs">
-                  <span className="text-[11px] text-blue-200 flex items-center gap-1">
-                    <Phone size={11} /> {aiMatch.agency.contacts?.[0]?.value || 'Hotline 911'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAgencyId(aiMatch.agency.id)}
-                    className={`px-3 py-1 text-xs font-extrabold rounded transition-all flex items-center gap-1 ${
-                      isAiSelected
-                        ? 'bg-emerald-500 text-white shadow-xs'
-                        : 'bg-blue-500 hover:bg-blue-400 text-white'
-                    }`}
-                  >
-                    {isAiSelected ? <Check size={12} /> : null}
-                    {isAiSelected ? 'AI Recommendation Selected' : 'Accept AI Route'}
-                  </button>
-                </div>
-              </div>
-            ) : null}
+              ) : null
+            )}
 
             {/* Manual Selection Header */}
             <div>
               <label className="text-xs font-extrabold uppercase tracking-wider text-gray-500 flex items-center justify-between">
-                <span>Or Select Agency Manually (Cebu City & Labangon)</span>
+                <span>Select Registered Response Agency</span>
                 <span className="text-[10px] text-gray-400 font-normal">
-                  {CEBU_RESPONSE_AGENCIES_SEED.length} agencies registered
+                  {allAgencies.length} registered agencies available
                 </span>
               </label>
 
+              {!loadingAi && !aiMatch && (
+                <div className="mt-2 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-800 font-medium">
+                  <AlertCircle size={15} className="text-amber-600 shrink-0" />
+                  <span>No automated AI route suggestion available. Please select a registered agency manually from the list below.</span>
+                </div>
+              )}
+
               {/* Agencies List */}
               <div className="mt-2.5 flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
-                {CEBU_RESPONSE_AGENCIES_SEED.map((agency) => {
+                {allAgencies.map((agency) => {
                   const isSelected = agency.id === selectedAgencyId
                   const isAiTarget = aiMatch?.agency.id === agency.id
 
                   return (
                     <div
-                      key={agency.id}
+                      key={agency.id || agency.username || agency.name}
                       onClick={() => setSelectedAgencyId(agency.id)}
                       className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-3 ${
                         isSelected
@@ -234,7 +260,7 @@ export default function AgencyAssignModal({
                   onClick={handleConfirm}
                   className="px-4 py-2 text-xs font-extrabold text-white bg-red-700 hover:bg-red-800 rounded-md transition-colors flex items-center gap-1.5 shadow-xs"
                 >
-                  <Send size={13} /> Dispatch Agency Now
+                  <Building2 size={13} /> {incident.assigned_agency_name ? 'Update Assigned Agency' : 'Assign Response Agency'}
                 </button>
               </div>
             </div>
