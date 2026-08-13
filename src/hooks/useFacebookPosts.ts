@@ -29,13 +29,8 @@ export function useFacebookPosts() {
       )
       .subscribe()
 
-    // Refetch when tab regains focus
-    const onFocus = () => fetchPosts()
-    window.addEventListener('focus', onFocus)
-
     return () => {
       supabase.removeChannel(channel)
-      window.removeEventListener('focus', onFocus)
     }
   }, [])
 
