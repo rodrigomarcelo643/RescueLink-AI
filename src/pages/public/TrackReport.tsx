@@ -5,11 +5,12 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   MapPin, Users, Clock, AlertTriangle, CheckCircle,
   Loader2, ChevronLeft, Image as ImageIcon, X,
-  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2
+  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Video, Play
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import type { Incident } from '@/types/incident'
 import LiveTrackingMap from '@/components/incidents/LiveTrackingMap'
+import { isVideoUrl } from '@/components/incidents/ProofCarousel'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -437,24 +438,37 @@ export default function TrackReport() {
           )}
 
           {/* Photos */}
+          {/* Photos & Videos */}
           {photos.length > 0 && (
             <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '14px 16px' }} className="bg-white">
               <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-                <ImageIcon size={12} /> Proof Photos ({photos.length})
+                <ImageIcon size={12} /> Proof Media ({photos.length})
               </p>
               <div className="grid grid-cols-4 gap-2">
-                {photos.map((url, i) => (
-                  <motion.button
-                    key={url}
-                    type="button"
-                    onClick={() => setLightbox(i)}
-                    whileTap={{ scale: 0.96 }}
-                    className="overflow-hidden"
-                    style={{ borderRadius: 6, border: '1px solid #e5e7eb', aspectRatio: '1' }}
-                  >
-                    <img src={url} alt="" className="size-full object-cover" />
-                  </motion.button>
-                ))}
+                {photos.map((url, i) => {
+                  const isVid = isVideoUrl(url)
+                  return (
+                    <motion.button
+                      key={url}
+                      type="button"
+                      onClick={() => setLightbox(i)}
+                      whileTap={{ scale: 0.96 }}
+                      className="overflow-hidden relative bg-black"
+                      style={{ borderRadius: 6, border: '1px solid #e5e7eb', aspectRatio: '1' }}
+                    >
+                      {isVid ? (
+                        <div className="relative size-full flex items-center justify-center">
+                          <video src={url} className="size-full object-cover" muted playsInline />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play size={14} className="text-white fill-white" />
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={url} alt="" className="size-full object-cover" />
+                      )}
+                    </motion.button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -501,17 +515,32 @@ export default function TrackReport() {
             exit={{ opacity: 0 }}
             onClick={() => setLightbox(null)}
           >
-            <motion.img
-              key={lightbox}
-              src={photos[lightbox]}
-              alt=""
-              className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain"
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-            />
+            {isVideoUrl(photos[lightbox]) ? (
+              <motion.video
+                key={lightbox}
+                src={photos[lightbox]}
+                controls
+                autoPlay
+                className="max-h-[85vh] max-w-[90vw] rounded-lg bg-black"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <motion.img
+                key={lightbox}
+                src={photos[lightbox]}
+                alt=""
+                className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
             <button
               onClick={() => setLightbox(null)}
               className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
