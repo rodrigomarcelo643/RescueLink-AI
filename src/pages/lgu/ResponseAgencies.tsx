@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import Pagination from '@/components/shared/Pagination'
 import type { ResponseAgency, AgencyCategory, AgencyContact } from '@/types/responseAgency'
-import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock, Radio, LocateFixed, MapPin } from 'lucide-react'
+import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock, Radio, LocateFixed } from 'lucide-react'
 
 type OperationalStatus = 'available' | 'busy' | 'offline'
 

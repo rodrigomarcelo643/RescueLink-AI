@@ -13,7 +13,7 @@ import type { Incident } from '@/types/incident'
 import {
   ShieldCheck, MapPin, CheckCircle,
   Clock, Navigation, RefreshCw, Eye, Sparkles, Filter, ChevronRight,
-  Check, X, Zap, AlertTriangle, Radio, Building2
+  X, Zap
 } from 'lucide-react'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
@@ -256,7 +256,7 @@ export default function AgencyDashboard() {
         </div>
 
         <button
-          onClick={fetchAssignedIncidents}
+          onClick={() => fetchAssignedIncidents(true)}
           className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-gray-200 bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-all cursor-pointer"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh Dispatches
