@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Incident } from '@/types/incident'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
+import { assignAgencyToIncident } from '@/services/incidents.service'
 import {
   ShieldAlert, AlertTriangle, Info, CheckCircle,
   MapPin, Users, X, Eye, Clock, Phone, Sparkles, Send
@@ -32,7 +33,7 @@ const SEVERITY_CONFIG: Record<
     badgeBg: 'bg-red-600 text-white',
     badgeText: 'CRITICAL ALERT',
     icon: ShieldAlert,
-    ring: 'ring-2 ring-red-500 animate-pulse',
+    ring: 'ring-2 ring-red-500', // Clear solid ring without blinking
     label: 'CRITICAL',
   },
   high: {
@@ -100,7 +101,7 @@ interface SingleToastCardProps {
   onStatusChange?: (id: string, status: Incident['status']) => void
 }
 
-function SingleToastCard({ toast, onDismiss, onSelectIncident, onStatusChange }: SingleToastCardProps) {
+function SingleToastCard({ toast, onDismiss, onSelectIncident }: SingleToastCardProps) {
   const { id, incident, timestamp } = toast
   const config = SEVERITY_CONFIG[incident.severity] || SEVERITY_CONFIG.medium
   const Icon = config.icon
@@ -112,10 +113,10 @@ function SingleToastCard({ toast, onDismiss, onSelectIncident, onStatusChange }:
     matchNearestAgency(incident).then((res) => setAgencyMatch(res))
   }, [incident])
 
-  const handleDispatch = () => {
-    setDispatched(true)
-    if (onStatusChange) {
-      onStatusChange(incident.id, 'responding')
+  const handleDispatch = async () => {
+    if (agencyMatch?.agency) {
+      await assignAgencyToIncident(incident.id, agencyMatch.agency.id, agencyMatch.agency.name, agencyMatch.agency.username || undefined)
+      setDispatched(true)
     }
   }
 
@@ -158,12 +159,12 @@ function SingleToastCard({ toast, onDismiss, onSelectIncident, onStatusChange }:
         </p>
       )}
 
-      {/* 🤖 AI Assigned Agency Box */}
-      {agencyMatch && (
+      {/* 🤖 AI Assigned Agency Box (Hidden if agency is already assigned) */}
+      {!incident.assigned_agency_name && !incident.assigned_agency_id && agencyMatch && (
         <div className="rounded-md bg-blue-950/80 p-2.5 border border-blue-400/30 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-[10px] font-black uppercase text-blue-300 tracking-wider">
-              <Sparkles size={11} className="text-blue-400" /> AI Assigned Agency (Cebu)
+              <Sparkles size={11} className="text-blue-400" /> AI Suggested Best Route
             </span>
             <span className="text-[10px] font-bold text-emerald-300">
               {agencyMatch.distanceKm} km away
@@ -183,7 +184,7 @@ function SingleToastCard({ toast, onDismiss, onSelectIncident, onStatusChange }:
             </span>
           </div>
 
-          {/* Quick Dispatch Button */}
+          {/* Quick Assign Button */}
           <button
             type="button"
             onClick={handleDispatch}
@@ -195,7 +196,7 @@ function SingleToastCard({ toast, onDismiss, onSelectIncident, onStatusChange }:
             }`}
           >
             <Send size={11} />
-            {dispatched || incident.status === 'responding' ? '✓ Agency Dispatched En Route' : 'Dispatch Agency Now'}
+            {dispatched ? '✓ Agency Assigned — Pending Acceptance' : 'Assign Response Agency'}
           </button>
         </div>
       )}
