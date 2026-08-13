@@ -3,102 +3,118 @@ import type { Incident } from '@/types/incident'
 import { DISASTER_TYPES } from '@/constants/disasterTypes'
 import { analyzeAndValidateReport, type AIValidationResult } from './aiValidation.service'
 
-const MOCK_INCIDENTS: Incident[] = [
-  {
-    id: 'mock-101',
-    channel: 'web',
-    disaster_type: 'Flood',
-    location_text: 'Barangay Sto. Domingo, Cainta, Rizal',
-    latitude: 14.5772,
-    longitude: 121.1234,
-    people_affected: 8,
-    severity: 'critical',
-    status: 'pending',
-    priority_score: 95,
-    ai_summary: 'Severe chest-deep flood waters trapped family of 8 on roof of 2-story house.',
-    media_urls: [
-      'https://images.unsplash.com/photo-1547683905-f686c993aae5?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1569163139599-0f4517e36f31?w=600&auto=format&fit=crop',
-    ],
-    raw_message: 'Kailangan po namin ng saklolo, lagpas tao na po ang baha dito sa Sto. Domingo!',
-    fb_sender_id: null,
-    reporter_name: 'Maria Santos',
-    reporter_contact: '09171234567',
-    ip_address: '127.0.0.1',
-    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-  },
-  {
-    id: 'mock-102',
-    channel: 'messenger',
-    disaster_type: 'Fire',
-    location_text: 'Barangay San Jose, Pasig City',
-    latitude: 14.56,
-    longitude: 121.08,
-    people_affected: 3,
-    severity: 'high',
-    status: 'responding',
-    priority_score: 82,
-    ai_summary: 'Residential fire spreading rapidly across wooden houses.',
-    media_urls: [
-      'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1574786198875-49f5d09fe2d2?w=600&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1616863072044-885e33d0c476?w=600&auto=format&fit=crop',
-    ],
-    raw_message: 'Nasusunog po bahay ng kapitbahay namin sa San Jose Pasig',
-    fb_sender_id: '1000123456',
-    reporter_name: 'Juan Dela Cruz',
-    reporter_contact: '09189876543',
-    ip_address: '127.0.0.1',
-    created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-  },
-  {
-    id: 'mock-103',
-    channel: 'telegram',
-    disaster_type: 'Landslide',
-    location_text: 'Sitio Upper, Antipolo, Rizal',
-    latitude: 14.58,
-    longitude: 121.18,
-    people_affected: 5,
-    severity: 'medium',
-    status: 'rescued',
-    priority_score: 60,
-    ai_summary: 'Soil erosion blocked main access road.',
-    media_urls: [
-      'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop',
-    ],
-    raw_message: 'May guho po sa kalsada sa Antipolo',
-    fb_sender_id: null,
-    reporter_name: 'Elena Reyes',
-    reporter_contact: '09223334455',
-    ip_address: '127.0.0.1',
-    created_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
-    updated_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
-  },
-]
+// Helper: check if a string is a valid UUID
+const isUUID = (s: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
 
-export const getIncidents = async (): Promise<Incident[]> => {
-  try {
-    const { data, error } = await supabase
+export const assignAgencyToIncident = async (
+  id: string,
+  agencyId: string,
+  agencyName: string,
+  agencyUsername?: string
+) => {
+  // ── 1. Update rescue_tickets ─────────────────────────────────────────────
+  // Try with assigned_agency_id first. If the column is still UUID type (error 42883),
+  // fall back to updating only assigned_agency_name which is TEXT.
+  const fullUpdate = await supabase
+    .from('rescue_tickets')
+    .update({
+      assigned_agency_id: String(agencyId),
+      assigned_agency_name: String(agencyName),
+      status: 'pending',
+    })
+    .eq('id', String(id))
+
+  if (fullUpdate.error?.code === '42883') {
+    // UUID column type mismatch — write only the TEXT column
+    console.warn('[assignAgency] assigned_agency_id is UUID type in DB — writing name only')
+    const nameOnly = await supabase
       .from('rescue_tickets')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    if (data && data.length > 0) return data
-    return MOCK_INCIDENTS
-  } catch (err) {
-    console.warn('Using fallback mock incidents:', err)
-    return MOCK_INCIDENTS
+      .update({ assigned_agency_name: String(agencyName), status: 'pending' })
+      .eq('id', String(id))
+    if (nameOnly.error) {
+      // 404 = RLS blocking or row not found — log but don't crash the UI
+      console.error('[assignAgency] name-only update failed:', nameOnly.error.code, nameOnly.error.message)
+    } else {
+      console.log('[assignAgency] assigned_agency_name written OK (UUID column fallback)')
+    }
+  } else if (fullUpdate.error) {
+    // 404 = RLS blocking — log but don't throw so UI still updates
+    console.error('[assignAgency] full update failed:', fullUpdate.error.code, fullUpdate.error.message)
+  } else {
+    console.log('[assignAgency] rescue_tickets updated OK — id:', id)
+  }
+
+  // ── 2. Update response_agencies.current_assigned_ticket_id ───────────────
+  // Only attempt by id if agencyId is a real UUID (seed IDs like "agency-cebu-001" will fail)
+  if (isUUID(agencyId)) {
+    const { error: byIdErr } = await supabase
+      .from('response_agencies')
+      .update({ current_assigned_ticket_id: id })
+      .eq('id', agencyId)
+    if (byIdErr) {
+      console.warn('[assignAgency] response_agencies update by id failed:', byIdErr.message)
+    }
+  }
+
+  // Always try by username as well (works for both seed and DB-registered agencies)
+  const username = agencyUsername || agencyId
+  if (username && !isUUID(username)) {
+    // username is a plain string — safe to query
+    await supabase
+      .from('response_agencies')
+      .update({ current_assigned_ticket_id: id })
+      .eq('username', username)
+  } else if (isUUID(username)) {
+    // agencyUsername is also a UUID — try it too
+    await supabase
+      .from('response_agencies')
+      .update({ current_assigned_ticket_id: id })
+      .eq('username', agencyUsername!)
   }
 }
 
+export const declineAgencyDispatch = async (id: string) => {
+  // Clear assignment on rescue_tickets
+  const { error } = await supabase
+    .from('rescue_tickets')
+    .update({
+      assigned_agency_id: null,
+      assigned_agency_name: null,
+      status: 'pending',
+    })
+    .eq('id', id)
+
+  if (error) {
+    console.error('[declineDispatch] rescue_tickets UPDATE failed:', error.message)
+  }
+
+  // Clear current_assigned_ticket_id on response_agencies
+  await supabase
+    .from('response_agencies')
+    .update({ current_assigned_ticket_id: null })
+    .eq('current_assigned_ticket_id', id)
+}
+
+// ── Fetch Incidents ───────────────────────────────────────────────────────────
+
+export const getIncidents = async (): Promise<Incident[]> => {
+  const { data, error } = await supabase
+    .from('rescue_tickets')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[getIncidents] DB fetch failed:', error.message)
+    return []
+  }
+
+  return data as Incident[]
+}
+
+// ── Status Update ─────────────────────────────────────────────────────────────
+
 export const updateIncidentStatus = async (id: string, status: Incident['status']) => {
-  if (id.startsWith('mock-')) return
   const { error } = await supabase
     .from('rescue_tickets')
     .update({ status })
@@ -106,19 +122,39 @@ export const updateIncidentStatus = async (id: string, status: Incident['status'
   if (error) throw error
 }
 
-export const assignResponder = async (id: string, responderId: string) => {
-  if (id.startsWith('mock-')) return
+// ── Delete Incident ───────────────────────────────────────────────────────────
+
+export const deleteIncident = async (id: string) => {
+  try {
+    await supabase.from('public_advisories').delete().eq('ticket_id', id)
+  } catch (e) {
+    console.warn('Advisory cleanup:', e)
+  }
+
+  try {
+    await supabase.from('messenger_tickets').update({ ticket_id: null }).eq('ticket_id', id)
+  } catch (e) {
+    console.warn('Messenger cleanup:', e)
+  }
+
+  const { error } = await supabase.from('rescue_tickets').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ── Assign Responder ──────────────────────────────────────────────────────────
+
+export const assignResponder = async (id: string, _responderId: string) => {
   const { error } = await supabase
     .from('rescue_tickets')
-    .update({ assigned_responder_id: responderId, status: 'responding' })
+    .update({ status: 'responding' })
     .eq('id', id)
   if (error) throw error
 }
 
-// ── Public web reporting ──────────────────────────────────────
+// ── Public Web Reporting ──────────────────────────────────────────────────────
 
-const RATE_LIMIT_MAX = 3      // max submissions
-const RATE_LIMIT_WINDOW = 3   // minutes
+const RATE_LIMIT_MAX = 3
+const RATE_LIMIT_WINDOW = 3 // minutes
 
 export async function checkRateLimit(ip: string): Promise<boolean> {
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW * 60 * 1000).toISOString()
@@ -187,7 +223,6 @@ export interface SubmissionResponse {
 }
 
 export async function submitPublicReport(payload: PublicReportPayload): Promise<SubmissionResponse> {
-  // 1) Execute AI Report Validation & Severity Extraction via OpenAI / Fallback
   const aiResult = await analyzeAndValidateReport({
     disaster_type: payload.disaster_type,
     location_text: payload.location_text,
@@ -200,7 +235,6 @@ export async function submitPublicReport(payload: PublicReportPayload): Promise<
     media_urls: payload.media_urls,
   })
 
-  // 2) Insert rescue ticket with AI extracted attributes into Supabase
   const { data, error } = await supabase
     .from('rescue_tickets')
     .insert({
@@ -216,20 +250,14 @@ export async function submitPublicReport(payload: PublicReportPayload): Promise<
 
   if (error) {
     console.error('Supabase insert error:', error)
-    // Return mock ID if local DB fails
-    const mockId = `web-${Date.now()}`
-    return { id: mockId, aiValidation: aiResult }
+    return { id: `web-${Date.now()}`, aiValidation: aiResult }
   }
 
-  // 3) Record rate limit entry
   try {
     await supabase.from('incident_rate_limits').insert({ ip_address: payload.ip_address })
   } catch (e) {
     console.warn('Rate limit recording error:', e)
   }
 
-  return {
-    id: data.id,
-    aiValidation: aiResult,
-  }
+  return { id: data.id, aiValidation: aiResult }
 }
