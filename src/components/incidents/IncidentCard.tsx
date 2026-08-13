@@ -10,13 +10,21 @@ import { updateIncident } from '@/redux/slices/incidentSlice'
 import { useDispatch } from 'react-redux'
 import type { Incident } from '@/types/incident'
 import type { ResponseAgency } from '@/types/responseAgency'
-import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2, Map, Lock } from 'lucide-react'
+import { useModal } from '@/context/ModalContext'
+import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2, Map, Trash2 } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',
   medium: '#f59e0b',
   high: '#f97316',
   critical: '#b91c1c',
+}
+
+const STATUS_ACTION_LABELS: Record<Incident['status'], string> = {
+  pending: 'Set to Pending ⏳',
+  responding: 'Set to Responding 🚒',
+  rescued: 'Set to Rescued 🟢',
+  closed: 'Set to Closed 🔒',
 }
 
 function getCategoryMatchedAgencyName(disasterType?: string): string {
@@ -29,20 +37,25 @@ function getCategoryMatchedAgencyName(disasterType?: string): string {
 }
 
 function ActionMenu({
+  incidentId,
   currentStatus,
   onStatusChange,
   onViewDetails,
   onViewMap,
   onOpenAssignModal,
+  onDelete,
 }: {
+  incidentId: string
   currentStatus: Incident['status']
   onStatusChange: (status: Incident['status']) => void
   onViewDetails: () => void
   onViewMap: () => void
   onOpenAssignModal: () => void
+  onDelete?: (id: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const { openModal } = useModal()
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -105,8 +118,8 @@ function ActionMenu({
               Live Track Map
             </button>
 
-            {/* Assign Agency Option (Disabled when closed or rescued) */}
-            {!isClosedOrRescued ? (
+            {/* Assign Agency Option */}
+            {currentStatus !== 'closed' && (
               <button
                 type="button"
                 onClick={() => {
@@ -116,33 +129,58 @@ function ActionMenu({
                 className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
               >
                 <Navigation size={13} className="text-blue-600" />
-                Assign Agency (AI Route)
+                {currentStatus === 'rescued' ? 'Assign/Change Agency' : 'Assign Response Agency'}
               </button>
-            ) : (
-              <div className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed flex items-center gap-2">
-                <Lock size={12} className="text-gray-300" />
-                Assignment Locked ({currentStatus})
-              </div>
             )}
 
-            <div className="my-1 border-t border-gray-100" />
+            {!isClosedOrRescued && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <div className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                  Set Status
+                </div>
+                {available.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => {
+                      onStatusChange(status)
+                      setOpen(false)
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
+                  >
+                    {STATUS_ACTION_LABELS[status]}
+                  </button>
+                ))}
+              </>
+            )}
 
-            <div className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
-              Set Status
-            </div>
-            {available.map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => {
-                  onStatusChange(status)
-                  setOpen(false)
-                }}
-                className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
-              >
-                Mark {status}
-              </button>
-            ))}
+            {onDelete && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    openModal({
+                      title: 'Delete Incident Ticket',
+                      description: 'Are you sure you want to delete this incident report? This action cannot be undone.',
+                      icon: <Trash2 size={20} className="text-red-600" />,
+                      confirmLabel: 'Delete Ticket',
+                      cancelLabel: 'Cancel',
+                      danger: true,
+                      onConfirm: async () => {
+                        await onDelete(incidentId)
+                      },
+                    })
+                    setOpen(false)
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-2"
+                >
+                  <Trash2 size={13} className="text-red-600" />
+                  Delete Ticket
+                </button>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -150,7 +188,7 @@ function ActionMenu({
   )
 }
 
-export default function IncidentCard({ incident }: { incident: Incident }) {
+export default function IncidentCard({ incident, onDelete }: { incident: Incident; onDelete?: (id: string) => void }) {
   const dispatch = useDispatch()
   const [showModal, setShowModal] = useState(false)
   const [modalTab, setModalTab] = useState<'details' | 'map'>('details')
@@ -160,8 +198,6 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
   const [assignedAgencyName, setAssignedAgencyName] = useState<string | null>(
     incident?.status === 'responding' ? matchedAgency : null
   )
-
-  const isClosedOrRescued = incident?.status === 'closed' || incident?.status === 'rescued'
 
   const handleStatusChange = async (status: Incident['status']) => {
     await updateIncidentStatus(incident.id, status)
@@ -201,11 +237,23 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
 
           <div className="flex items-center gap-2">
             {assignedAgencyName ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2.5 py-1 text-[11px] font-extrabold text-blue-800 border border-blue-200">
-                <Building2 size={11} className="text-blue-600 shrink-0" />
-                <span>{assignedAgencyName}</span>
-              </span>
-            ) : !isClosedOrRescued ? (
+              incident?.status !== 'closed' ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(true)}
+                  title="Click to change assigned agency"
+                  className="inline-flex items-center gap-1 rounded-md bg-blue-50 hover:bg-blue-100 px-2.5 py-1 text-[11px] font-extrabold text-blue-800 border border-blue-200 transition-colors"
+                >
+                  <Building2 size={11} className="text-blue-600 shrink-0" />
+                  <span>{assignedAgencyName}</span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600 border border-gray-200">
+                  <Building2 size={11} className="text-gray-400 shrink-0" />
+                  <span>{assignedAgencyName}</span>
+                </span>
+              )
+            ) : incident?.status !== 'closed' ? (
               <button
                 type="button"
                 onClick={() => setShowAssignModal(true)}
@@ -218,11 +266,13 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
             <StatusBadge status={incident?.status} />
 
             <ActionMenu
+              incidentId={incident?.id}
               currentStatus={incident?.status}
               onStatusChange={handleStatusChange}
               onViewDetails={() => openDetailsModal('details')}
               onViewMap={() => openDetailsModal('map')}
               onOpenAssignModal={() => setShowAssignModal(true)}
+              onDelete={onDelete}
             />
           </div>
         </div>
@@ -255,6 +305,7 @@ export default function IncidentCard({ incident }: { incident: Incident }) {
           initialTab={modalTab}
           onClose={() => setShowModal(false)}
           onStatusChange={(_id, status) => handleStatusChange(status)}
+          onDelete={onDelete}
         />
       )}
 
