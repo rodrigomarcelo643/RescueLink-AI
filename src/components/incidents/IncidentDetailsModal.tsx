@@ -38,6 +38,7 @@ interface IncidentDetailsModalProps {
   onStatusChange?: (id: string, status: Incident['status']) => void
   onDelete?: (id: string) => void
   initialTab?: 'details' | 'map'
+  isLGU?: boolean
 }
 
 export default function IncidentDetailsModal({
@@ -46,6 +47,7 @@ export default function IncidentDetailsModal({
   onStatusChange,
   onDelete,
   initialTab = 'details',
+  isLGU = true,
 }: IncidentDetailsModalProps) {
   const { openModal } = useModal()
   const dispatch = useDispatch()
@@ -70,15 +72,18 @@ export default function IncidentDetailsModal({
 
   if (!incident) return null
 
-  const activeAgencyName = manualAgency?.name || agencyMatch?.agency.name || 'BFP Labangon Fire Sub-Station 🚒'
-  const activeAgencyContact = manualAgency?.contacts?.[0]?.value || agencyMatch?.agency.contacts?.[0]?.value || '(032) 261-2222'
+  const activeAgencyName = incident.assigned_agency_name || manualAgency?.name || agencyMatch?.agency.name || 'Response Agency Station'
+  const activeAgencyContact = manualAgency?.contacts?.[0]?.value || agencyMatch?.agency.contacts?.[0]?.value || '911 Emergency'
 
   const incLat = incident.latitude ?? 14.5772
   const incLng = incident.longitude ?? 121.1234
 
+  const activeAgencyLat = manualAgency?.latitude ?? agencyMatch?.agency.latitude ?? (incLat + 0.014)
+  const activeAgencyLng = manualAgency?.longitude ?? agencyMatch?.agency.longitude ?? (incLng - 0.016)
+
   const responderInfo = {
-    lat: incLat + 0.014,
-    lng: incLng - 0.016,
+    lat: activeAgencyLat,
+    lng: activeAgencyLng,
     unitName: activeAgencyName,
     contact: activeAgencyContact,
   }
@@ -254,11 +259,11 @@ export default function IncidentDetailsModal({
                     <span className="flex items-center gap-1.5 text-xs font-black uppercase text-blue-900 tracking-wider">
                       <Sparkles size={14} className="text-blue-600" /> Assigned Response Agency
                     </span>
-                    {incident.status !== 'closed' && (
+                    {isLGU && incident.status !== 'closed' && (
                       <button
                         type="button"
                         onClick={() => setShowAssignModal(true)}
-                        className="px-2.5 py-1 text-[11px] font-extrabold bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
+                        className="px-2.5 py-1 text-[11px] font-extrabold bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors cursor-pointer"
                       >
                         Manually Assign Agency
                       </button>
@@ -271,13 +276,13 @@ export default function IncidentDetailsModal({
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-extrabold text-gray-900">
-                        {manualAgency?.name || agencyMatch?.agency.name || 'BFP Labangon Fire Sub-Station'}
+                        {incident.assigned_agency_name || manualAgency?.name || agencyMatch?.agency.name || 'Response Station'}
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {manualAgency?.address || agencyMatch?.agency.address || 'Cebu City Emergency Station'}
+                        {manualAgency?.address || agencyMatch?.agency.address || 'Emergency Response Station'}
                       </p>
                       <p className="text-[11px] text-blue-700 mt-1 font-semibold">
-                        {manualAgency ? 'Manually Assigned Agency' : (agencyMatch?.aiReason || 'Automated AI Sector Match')}
+                        {incident.assigned_agency_name ? `Assigned Responder: ${incident.assigned_agency_name}` : manualAgency ? 'Manually Assigned Agency' : (agencyMatch?.aiReason || 'Automated AI Sector Match')}
                       </p>
                     </div>
                   </div>
@@ -304,17 +309,21 @@ export default function IncidentDetailsModal({
                         <Lock size={13} className="text-gray-500" /> Ticket Closed & Archived
                       </span>
                     ) : dispatched || (incident.assigned_agency_name && incident.assigned_agency_id) ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-amber-600 text-white rounded-md shadow-xs">
-                        ✓ Agency Assigned — Pending Acceptance
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-emerald-600 text-white rounded-md shadow-xs">
+                        ✓ Unit Assigned & En Route
                       </span>
-                    ) : (
+                    ) : isLGU ? (
                       <button
                         type="button"
                         onClick={handleDispatch}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-xs transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-xs transition-colors cursor-pointer"
                       >
                         <Building2 size={12} /> Assign Response Agency
                       </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-blue-800 bg-blue-100 rounded-md">
+                        Station View
+                      </span>
                     )}
                   </div>
                 </div>
