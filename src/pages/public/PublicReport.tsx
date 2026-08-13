@@ -31,6 +31,34 @@ async function getClientIp(): Promise<string> {
   }
 }
 
+async function fetchAddressFromCoords(lat: number, lng: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      { headers: { 'Accept-Language': 'en' } }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      const addr = data.address
+      if (addr) {
+        const road = addr.road || addr.street || addr.suburb || ''
+        const village = addr.village || addr.neighbourhood || addr.quarter || addr.suburb || addr.city_district || ''
+        const city = addr.city || addr.town || addr.municipality || 'Cebu City'
+        const parts = [road, village, city].filter(Boolean)
+        if (parts.length > 0) {
+          return parts.join(', ')
+        }
+      }
+      if (data.display_name) {
+        return data.display_name.split(',').slice(0, 3).join(',')
+      }
+    }
+  } catch (e) {
+    console.warn('Reverse geocoding error:', e)
+  }
+  return `Cebu City (GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)})`
+}
+
 interface ImageEntry {
   file: File
   preview: string
@@ -67,6 +95,28 @@ export default function PublicReport() {
   // Cleanup object URLs on unmount
   useEffect(() => () => entries.forEach((e) => URL.revokeObjectURL(e.preview)), [])
 
+  const handleLocate = useCallback(() => {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setCoords({ lat, lng })
+        const address = await fetchAddressFromCoords(lat, lng)
+        setLocationText((prev) => (!prev.trim() || prev.includes('GPS') ? address : prev))
+        setLocating(false)
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }, [])
+
+  // Automatically fetch location & address on page mount
+  useEffect(() => {
+    handleLocate()
+  }, [handleLocate])
+
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files)
     const remaining = MAX_IMAGES - entries.length
@@ -92,15 +142,6 @@ export default function PublicReport() {
     setDragging(false)
     addFiles(e.dataTransfer.files)
   }
-
-  const handleLocate = useCallback(() => {
-    if (!navigator.geolocation) return
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false) },
-      () => setLocating(false),
-    )
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
