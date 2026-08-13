@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { getIncidents } from '@/services/incidents.service'
-import { setIncidents, addIncident, setLoading } from '@/redux/slices/incidentSlice'
+import { setIncidents, addIncident, updateIncident, setLoading } from '@/redux/slices/incidentSlice'
 import { supabase } from '@/services/supabase'
 import type { RootState } from '@/redux/store'
 import type { Incident } from '@/types/incident'
@@ -17,9 +17,12 @@ export function useIncidents() {
       .finally(() => dispatch(setLoading(false)))
 
     const channel = supabase
-      .channel('rescue_tickets_realtime')
+      .channel('rescue_tickets_realtime_all')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
         (payload) => dispatch(addIncident(payload.new as Incident))
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rescue_tickets' },
+        (payload) => dispatch(updateIncident(payload.new as Incident))
       )
       .subscribe()
 
