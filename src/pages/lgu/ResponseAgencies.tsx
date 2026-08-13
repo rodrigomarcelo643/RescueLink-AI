@@ -3,11 +3,34 @@ import { useResponseAgencies } from '@/hooks/useResponseAgencies'
 import {
   addResponseAgency, updateResponseAgency, deleteResponseAgency,
 } from '@/services/responseAgencies.service'
+import { supabase } from '@/services/supabase'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import Pagination from '@/components/shared/Pagination'
 import type { ResponseAgency, AgencyCategory, AgencyContact } from '@/types/responseAgency'
-import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock } from 'lucide-react'
+import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock, Radio } from 'lucide-react'
+
+type OperationalStatus = 'available' | 'busy' | 'offline'
+
+const OP_STATUS_CONFIG: Record<OperationalStatus, { label: string; bg: string; color: string; border: string; dot: string }> = {
+  available: { label: 'Available', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', dot: '#22c55e' },
+  busy:      { label: 'On Scene',  bg: '#fffbeb', color: '#b45309', border: '#fde68a', dot: '#f59e0b' },
+  offline:   { label: 'Offline',   bg: '#f9fafb', color: '#6b7280', border: '#e5e7eb', dot: '#9ca3af' },
+}
+
+function OpStatusBadge({ status }: { status?: string | null }) {
+  const s = (status && status in OP_STATUS_CONFIG ? status : 'available') as OperationalStatus
+  const cfg = OP_STATUS_CONFIG[s] ?? OP_STATUS_CONFIG.offline
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-extrabold capitalize"
+      style={{ borderRadius: 4, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+    >
+      <span className="size-1.5 rounded-full shrink-0" style={{ background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  )
+}
 
 const CATEGORIES: AgencyCategory[] = ['fire', 'police', 'medical', 'rescue', 'military', 'ngo', 'other']
 const CONTACT_LABELS = ['hotline', 'mobile', 'landline', 'fax', 'viber', 'other']
@@ -25,6 +48,7 @@ const empty = (): Omit<ResponseAgency, 'id' | 'created_at'> => ({
 
 export default function ResponseAgencies() {
   const { items, loading, refresh } = useResponseAgencies()
+  const [liveStatuses, setLiveStatuses] = useState<Record<string, OperationalStatus>>({})
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ResponseAgency | null>(null)
   const [form, setForm] = useState(empty())
@@ -59,16 +83,56 @@ export default function ResponseAgencies() {
 
   useEffect(() => { setPage(1) }, [items.length, filterCat])
 
+  // Seed liveStatuses from loaded items — always overwrite so fresh DB data wins
+  useEffect(() => {
+    if (!items.length) return
+    setLiveStatuses((prev) => {
+      const next = { ...prev }
+      items.forEach((a) => {
+        // Only overwrite if DB has a real value; keep live realtime value otherwise
+        if (!(a.id in next)) {
+          next[a.id] = (a.operational_status as OperationalStatus | undefined)
+            && (a.operational_status as string) in OP_STATUS_CONFIG
+            ? a.operational_status as OperationalStatus
+            : 'available'
+        }
+      })
+      return next
+    })
+  }, [items])
+
+  // Realtime listener — update operational_status live when agency switches status
+  useEffect(() => {
+    const channel = supabase
+      .channel('lgu_response_agencies_status')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'response_agencies' },
+        (payload) => {
+          const updated = payload.new as ResponseAgency
+          if (!updated?.id) return
+          setLiveStatuses((prev) => ({
+            ...prev,
+            [updated.id]: (updated.operational_status as OperationalStatus) ?? 'available',
+          }))
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   const filtered = filterCat === 'all' ? items : items.filter((a) => a.category === filterCat)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const active = items.filter((a) => a.is_active)
+  const availableCount = items.filter((a) => (liveStatuses[a.id] ?? a.operational_status) === 'available').length
+  const busyCount = items.filter((a) => (liveStatuses[a.id] ?? a.operational_status) === 'busy').length
 
   const stats = [
-    { label: 'Total Agencies', value: items.length,                       color: '#b91c1c', icon: ShieldCheck },
-    { label: 'Active',         value: active.length,                      color: '#22c55e', icon: CheckCircle },
-    { label: 'Inactive',       value: items.length - active.length,       color: '#9ca3af', icon: XCircle    },
-    { label: 'Categories',     value: new Set(items.map(a => a.category)).size, color: '#8b5cf6', icon: ShieldCheck },
+    { label: 'Total Agencies', value: items.length,    color: '#b91c1c', icon: ShieldCheck },
+    { label: 'Available',      value: availableCount,  color: '#22c55e', icon: CheckCircle },
+    { label: 'On Scene',       value: busyCount,        color: '#f59e0b', icon: Radio       },
+    { label: 'Inactive',       value: items.length - active.length, color: '#9ca3af', icon: XCircle },
   ]
 
   const openAdd = () => { setEditing(null); setForm(empty()); setError(''); setOpen(true) }
@@ -193,7 +257,7 @@ export default function ResponseAgencies() {
             <table className="w-full text-left">
               <thead>
                 <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  {['Name', 'Category', 'Contacts', 'Address', 'Portal Credentials', 'Status', ''].map((h) => (
+                  {['Name', 'Category', 'Contacts', 'Address', 'Portal Credentials', 'Operational Status', 'Active', ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{h}</th>
                   ))}
                 </tr>
@@ -258,6 +322,9 @@ export default function ResponseAgencies() {
                       ) : (
                         <span className="text-[11px] text-gray-300 italic">Unregistered</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <OpStatusBadge status={liveStatuses[a.id] ?? a.operational_status} />
                     </td>
                     <td className="px-4 py-3">
                       <span
