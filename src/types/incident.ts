@@ -16,6 +16,9 @@ export interface Incident {
   reporter_name: string | null
   reporter_contact: string | null
   ip_address: string | null
+  assigned_agency_id?: string | null
+  assigned_agency_name?: string | null
+  assigned_responder_id?: string | null
   created_at: string
   updated_at: string
 }
