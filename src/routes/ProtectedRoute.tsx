@@ -8,10 +8,10 @@ interface Props {
 }
 
 export default function ProtectedRoute({ allowedRoles }: Props) {
-  const { user, role, loading } = useAuth()
+  const { user, agency, role, loading } = useAuth()
 
   if (loading) return <LoadingSpinner />
-  if (!user) return <Navigate to="/login" replace />
+  if (!user && !agency) return <Navigate to="/login" replace />
   if (!role || (allowedRoles && !allowedRoles.includes(role))) {
     return <Navigate to="/unauthorized" replace />
   }
