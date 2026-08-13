@@ -3,24 +3,31 @@ import { useAuth } from '@/context/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
-import Dashboard from '@/pages/Dashboard'
-import Incidents from '@/pages/Incidents'
-import Donations from '@/pages/Donations'
-import Volunteers from '@/pages/Volunteers'
-import PublicDashboard from '@/pages/PublicDashboard'
-import PublicReport from '@/pages/PublicReport'
-import Login from '@/pages/Login'
-import Signup from '@/pages/Signup'
-import Unauthorized from '@/pages/Unauthorized'
-import ForgotPassword from '@/pages/ForgotPassword'
+import Login from '@/pages/auth/Login'
+import Signup from '@/pages/auth/Signup'
+import ForgotPassword from '@/pages/auth/ForgotPassword'
 
-import TrackReport from '@/pages/TrackReport'
-import Settings from '@/pages/Settings'
-import MonitoringMap from '@/pages/MonitoringMap'
-import FbMonitor from '@/pages/FbMonitor'
-import MessengerTest from '@/pages/MessengerTest'
-import EvacuationCenters from '@/pages/EvacuationCenters'
-import ResponseAgencies from '@/pages/ResponseAgencies'
+import Dashboard from '@/pages/lgu/Dashboard'
+import Incidents from '@/pages/lgu/Incidents'
+import Donations from '@/pages/lgu/Donations'
+import Volunteers from '@/pages/lgu/Volunteers'
+import Settings from '@/pages/lgu/Settings'
+import MonitoringMap from '@/pages/lgu/MonitoringMap'
+import FbMonitor from '@/pages/lgu/FbMonitor'
+import EvacuationCenters from '@/pages/lgu/EvacuationCenters'
+import ResponseAgencies from '@/pages/lgu/ResponseAgencies'
+
+import AgencyRegistrationPage from '@/pages/agency/AgencyRegistrationPage'
+import AgencyDashboard from '@/pages/agency/AgencyDashboard'
+import AgencyMap from '@/pages/agency/AgencyMap'
+import AgencyProfile from '@/pages/agency/AgencyProfile'
+
+import PublicDashboard from '@/pages/public/PublicDashboard'
+import PublicReport from '@/pages/public/PublicReport'
+import TrackReport from '@/pages/public/TrackReport'
+
+import Unauthorized from '@/pages/shared/Unauthorized'
+import MessengerTest from '@/pages/shared/MessengerTest'
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
   const { user, role, loading } = useAuth()
@@ -28,10 +35,7 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   if (user && role) {
     const landing: Partial<Record<string, string>> = {
       lgu: '/',
-      // ngo: '/ngo',
-      // volunteer: '/volunteer',
-      // citizen: '/citizen',
-      // admin: '/admin',
+      agency: '/agency-dashboard',
     }
     return <Navigate to={landing[role] ?? '/unauthorized'} replace />
   }
@@ -52,10 +56,12 @@ export default function AppRouter() {
         <Route path="/public" element={<PublicDashboard />} />
         <Route path="/report" element={<PublicReport />} />
         <Route path="/track/:id" element={<TrackReport />} />
+        <Route path="/register-agency" element={<AgencyRegistrationPage />} />
+        <Route path="/agency-registration" element={<AgencyRegistrationPage />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/messenger-test" element={<MessengerTest />} />
 
-        {/* Protected — role shell handles per-role layout */}
+        {/* Protected LGU routes */}
         <Route element={<ProtectedRoute allowedRoles={['lgu']} />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/incidents" element={<Incidents />} />
@@ -66,6 +72,13 @@ export default function AppRouter() {
           <Route path="/response-agencies" element={<ResponseAgencies />} />
           <Route path="/map" element={<MonitoringMap />} />
           <Route path="/settings" element={<Settings />} />
+        </Route>
+
+        {/* Protected Response Agency Portal routes */}
+        <Route element={<ProtectedRoute allowedRoles={['agency']} />}>
+          <Route path="/agency-dashboard" element={<AgencyDashboard />} />
+          <Route path="/agency-map" element={<AgencyMap />} />
+          <Route path="/agency-profile" element={<AgencyProfile />} />
         </Route>
 
         {/* Fallback */}
