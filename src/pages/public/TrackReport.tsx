@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   MapPin, Users, Clock, AlertTriangle, CheckCircle,
   Loader2, ChevronLeft, Image as ImageIcon, X,
-  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Video, Play
+  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Play
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import type { Incident } from '@/types/incident'
