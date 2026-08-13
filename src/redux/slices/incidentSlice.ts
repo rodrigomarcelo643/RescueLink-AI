@@ -16,11 +16,19 @@ const incidentSlice = createSlice({
       state.items = action.payload
     },
     addIncident(state, action: PayloadAction<Incident>) {
-      state.items.unshift(action.payload)
+      const exists = state.items.some((i) => i.id === action.payload.id)
+      if (!exists) {
+        state.items.unshift(action.payload)
+      }
     },
-    updateIncident(state, action: PayloadAction<Incident>) {
+    updateIncident(state, action: PayloadAction<Partial<Incident> & { id: string }>) {
       const idx = state.items.findIndex((i) => i.id === action.payload.id)
-      if (idx !== -1) state.items[idx] = action.payload
+      if (idx !== -1) {
+        state.items[idx] = { ...state.items[idx], ...action.payload }
+      }
+    },
+    removeIncident(state, action: PayloadAction<string>) {
+      state.items = state.items.filter((i) => i.id !== action.payload)
     },
     setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload
@@ -28,5 +36,5 @@ const incidentSlice = createSlice({
   },
 })
 
-export const { setIncidents, addIncident, updateIncident, setLoading } = incidentSlice.actions
+export const { setIncidents, addIncident, updateIncident, removeIncident, setLoading } = incidentSlice.actions
 export default incidentSlice.reducer
