@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   AlertTriangle, MapPin, Users, FileText, Phone, User,
-  LocateFixed, X, CloudUpload, CheckCircle, Camera, Sparkles,
+  LocateFixed, X, CloudUpload, CheckCircle, Camera, Sparkles, Video,
 } from 'lucide-react'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import { Button } from '@/components/ui/button'
@@ -60,8 +60,8 @@ export default function PublicReport() {
   const [ticketId, setTicketId] = useState('')
   const [aiResult, setAiResult] = useState<AIValidationResult | null>(null)
 
-  const browseRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
 
   // Cleanup object URLs on unmount
@@ -430,16 +430,16 @@ export default function PublicReport() {
               />
             </FadeUp>
 
-            {/* Photo upload zone */}
+            {/* Media upload zone (Photos & Videos) */}
             <FadeUp delay={0.36}>
               <div className="flex flex-col gap-2">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-                  Proof Photos <span className="font-normal normal-case text-gray-300">(up to {MAX_IMAGES})</span>
+                  Proof Media <span className="font-normal normal-case text-gray-300">(photos & videos up to {MAX_IMAGES})</span>
                 </label>
 
-                <input ref={browseRef} type="file" accept="image/*" multiple className="hidden"
-                  onChange={(e) => addFiles(e.target.files!)} />
                 <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={(e) => addFiles(e.target.files!)} />
+                <input ref={videoRef} type="file" accept="video/*" capture="environment" className="hidden"
                   onChange={(e) => addFiles(e.target.files!)} />
 
                 {entries.length < MAX_IMAGES && (
@@ -452,7 +452,7 @@ export default function PublicReport() {
                     transition={{ duration: 0.15 }}
                     className="flex flex-col items-center gap-3 py-7 cursor-pointer select-none"
                     style={{ border: '2px dashed #e5e7eb', borderRadius: 8 }}
-                    onClick={() => browseRef.current?.click()}
+                    onClick={() => cameraRef.current?.click()}
                   >
                     <motion.div
                       animate={{ y: dragging ? -4 : 0 }}
@@ -462,28 +462,28 @@ export default function PublicReport() {
                     </motion.div>
                     <div className="text-center">
                       <p className="text-sm font-semibold text-gray-600">
-                        {dragging ? 'Drop to add photos' : 'Drag & drop photos here'}
+                        {dragging ? 'Drop to add media' : 'Capture media below'}
                       </p>
-                      <p className="mt-0.5 text-xs text-gray-400">or choose an option below</p>
+                      <p className="mt-0.5 text-xs text-gray-400">Take a photo or record a video</p>
                     </div>
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.96 }}
-                        onClick={() => browseRef.current?.click()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-white"
-                        style={{ border: '1px solid #e5e7eb', borderRadius: 5, background: '#fff' }}
-                      >
-                        <CloudUpload size={12} /> Browse Files
-                      </motion.button>
+                    <div className="flex flex-wrap justify-center gap-3" onClick={(e) => e.stopPropagation()}>
                       <motion.button
                         type="button"
                         whileTap={{ scale: 0.96 }}
                         onClick={() => cameraRef.current?.click()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-white"
-                        style={{ border: '1px solid #e5e7eb', borderRadius: 5, background: '#fff' }}
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-gray-800 transition-colors hover:bg-gray-50 shadow-2xs"
+                        style={{ border: '1px solid #d1d5db', borderRadius: 6, background: '#fff' }}
                       >
-                        <Camera size={12} /> Take Photo
+                        <Camera size={14} className="text-blue-600" /> Take Photo
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => videoRef.current?.click()}
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-gray-800 transition-colors hover:bg-gray-50 shadow-2xs"
+                        style={{ border: '1px solid #d1d5db', borderRadius: 6, background: '#fff' }}
+                      >
+                        <Video size={14} className="text-red-600" /> Take Video
                       </motion.button>
                     </div>
                   </motion.div>
@@ -497,71 +497,83 @@ export default function PublicReport() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.25 }}
                     >
-                      {entries.map((entry, i) => (
-                        <motion.div
-                          key={entry.preview}
-                          className="relative overflow-hidden"
-                          style={{ borderRadius: 6, border: '1px solid #e5e7eb', aspectRatio: '1' }}
-                          initial={{ opacity: 0, scale: 0.85 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <img src={entry.preview} alt="" className="size-full object-cover" />
-
-                          <AnimatePresence>
-                            {loading && uploadingIndex === i && entry.progress >= 0 && entry.progress < 100 && (
-                              <motion.div
-                                className="absolute inset-0 flex flex-col items-center justify-center gap-1"
-                                style={{ background: 'rgba(0,0,0,0.55)' }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                              >
-                                <CloudUpload size={16} className="text-white" />
-                                <span className="text-[10px] font-bold text-white">{entry.progress}%</span>
-                                <div className="w-10 overflow-hidden rounded-full" style={{ height: 3, background: 'rgba(255,255,255,0.3)' }}>
-                                  <motion.div
-                                    className="h-full rounded-full bg-white"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${entry.progress}%` }}
-                                    transition={{ duration: 0.1 }}
-                                  />
+                      {entries.map((entry, i) => {
+                        const isVid = entry.file.type.startsWith('video/')
+                        return (
+                          <motion.div
+                            key={entry.preview}
+                            className="relative overflow-hidden bg-gray-900"
+                            style={{ borderRadius: 6, border: '1px solid #e5e7eb', aspectRatio: '1' }}
+                            initial={{ opacity: 0, scale: 0.85 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            {isVid ? (
+                              <div className="relative size-full bg-black flex items-center justify-center">
+                                <video src={entry.preview} className="size-full object-cover" muted playsInline />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+                                  <Video size={16} className="text-white drop-shadow-md" />
                                 </div>
-                              </motion.div>
+                              </div>
+                            ) : (
+                              <img src={entry.preview} alt="" className="size-full object-cover" />
                             )}
-                          </AnimatePresence>
 
-                          <AnimatePresence>
-                            {entry.uploaded && (
-                              <motion.div
-                                className="absolute bottom-1 right-1 flex size-4 items-center justify-center rounded-full bg-green-500"
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                            <AnimatePresence>
+                              {loading && uploadingIndex === i && entry.progress >= 0 && entry.progress < 100 && (
+                                <motion.div
+                                  className="absolute inset-0 flex flex-col items-center justify-center gap-1"
+                                  style={{ background: 'rgba(0,0,0,0.55)' }}
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  exit={{ opacity: 0 }}
+                                >
+                                  <CloudUpload size={16} className="text-white" />
+                                  <span className="text-[10px] font-bold text-white">{entry.progress}%</span>
+                                  <div className="w-10 overflow-hidden rounded-full" style={{ height: 3, background: 'rgba(255,255,255,0.3)' }}>
+                                    <motion.div
+                                      className="h-full rounded-full bg-white"
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${entry.progress}%` }}
+                                      transition={{ duration: 0.1 }}
+                                    />
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            <AnimatePresence>
+                              {entry.uploaded && (
+                                <motion.div
+                                  className="absolute bottom-1 right-1 flex size-4 items-center justify-center rounded-full bg-green-500"
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                                >
+                                  <CheckCircle size={10} className="text-white" />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {!loading && (
+                              <button
+                                type="button"
+                                onClick={() => removeEntry(i)}
+                                className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-red-600 text-white transition-opacity hover:opacity-80 z-10"
                               >
-                                <CheckCircle size={10} className="text-white" />
-                              </motion.div>
+                                <X size={8} />
+                              </button>
                             )}
-                          </AnimatePresence>
-
-                          {!loading && (
-                            <button
-                              type="button"
-                              onClick={() => removeEntry(i)}
-                              className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-red-600 text-white transition-opacity hover:opacity-80"
-                            >
-                              <X size={8} />
-                            </button>
-                          )}
-                        </motion.div>
-                      ))}
+                          </motion.div>
+                        )
+                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 {entries.length > 0 && entries.length < MAX_IMAGES && (
-                  <p className="text-[11px] text-gray-400">{entries.length}/{MAX_IMAGES} photos added</p>
+                  <p className="text-[11px] text-gray-400">{entries.length}/{MAX_IMAGES} items added</p>
                 )}
               </div>
             </FadeUp>
