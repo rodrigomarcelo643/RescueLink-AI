@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/services/supabase'
-import { getAgencySession, signOutAgency } from '@/services/agencyAuth.service'
+import { getAgencySession, signOutAgency, updateAgencySession } from '@/services/agencyAuth.service'
 import type { ResponseAgency } from '@/types/responseAgency'
 
 export type UserRole = 'citizen' | 'lgu' | 'ngo' | 'volunteer' | 'admin' | 'agency'
@@ -23,6 +23,7 @@ interface AuthContextValue {
   loading: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  refreshAgency: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -111,10 +112,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await fetchProfile(user.id)
   }
 
+  const refreshAgency = async () => {
+    const session = getAgencySession()
+    if (!session?.id) return
+    const { data, error } = await supabase
+      .from('response_agencies')
+      .select('*')
+      .eq('id', session.id)
+      .single()
+    if (!error && data) {
+      const fresh = data as ResponseAgency
+      updateAgencySession(fresh)
+      setAgency(fresh)
+    }
+  }
+
   const computedRole: UserRole | null = agency ? 'agency' : profile?.role ?? null
 
   return (
-    <AuthContext.Provider value={{ user, profile, agency, role: computedRole, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, agency, role: computedRole, loading, signOut, refreshProfile, refreshAgency }}>
       {children}
     </AuthContext.Provider>
   )
