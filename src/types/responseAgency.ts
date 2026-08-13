@@ -27,5 +27,6 @@ export interface ResponseAgency {
   longitude?: number | null
   equipment_notes?: string | null
   current_assigned_ticket_id?: string | null
+  operational_status?: 'available' | 'busy' | 'offline' | null
   created_at: string
 }

@@ -239,19 +239,24 @@ export const updateAgencyStatus = async (
     is_active: status !== 'offline',
   }
 
-  const { data, error } = await supabase
-    .from('response_agencies')
-    .update(patch)
-    .eq('id', id)
-    .select('*')
-    .single()
+  // Try DB update first (works for registered agencies in Supabase)
+  try {
+    const { data, error } = await supabase
+      .from('response_agencies')
+      .update(patch)
+      .eq('id', id)
+      .select('*')
+      .single()
 
-  if (error) {
-    console.warn('Supabase status update error:', error)
-    return null
+    if (!error && data) return data as ResponseAgency
+    // DB update failed (seed agency or column missing) — fall through to session-only update
+    console.warn('DB status update skipped (seed agency or missing column):', error?.message)
+  } catch (e) {
+    console.warn('DB status update error:', e)
   }
 
-  return data as ResponseAgency
+  // Fallback: return null so caller can still update session from local state
+  return null
 }
 
 export const addResponseAgency = async (data: Omit<ResponseAgency, 'id' | 'created_at'>) => {
