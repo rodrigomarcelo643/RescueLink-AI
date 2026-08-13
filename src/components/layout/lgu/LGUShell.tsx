@@ -6,7 +6,8 @@ import IncidentToast, { type ToastItem } from '@/components/shared/IncidentToast
 import { supabase } from '@/services/supabase'
 import { updateIncidentStatus } from '@/services/incidents.service'
 import { updateIncident, addIncident } from '@/redux/slices/incidentSlice'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
+import type { RootState } from '@/redux/store'
 import type { Incident } from '@/types/incident'
 
 const PAGE_TITLES: Record<string, string> = {
@@ -22,6 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
 
 export default function LGUShell() {
   const dispatch = useDispatch()
+  const incidents = useSelector((s: RootState) => s.incidents.items)
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -29,6 +31,9 @@ export default function LGUShell() {
 
   const location = useLocation()
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'RescueLink AI'
+
+  const criticalCount = incidents.filter(i => i.severity === 'critical' && i.status !== 'closed').length
+  const highCount = incidents.filter(i => i.severity === 'high' && i.status !== 'closed').length
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -43,7 +48,7 @@ export default function LGUShell() {
     setToasts((prev) => [newToast, ...prev].slice(0, 5)) // keep max 5 active toasts
   }, [])
 
-  // Supabase Realtime Listener for new rescue tickets
+  // Supabase Realtime Listener for new rescue tickets & agency acceptance/declination updates
   useEffect(() => {
     const channel = supabase
       .channel('lgu_shell_realtime_toasts')
@@ -54,6 +59,32 @@ export default function LGUShell() {
           const newIncident = payload.new as Incident
           dispatch(addIncident(newIncident))
           pushToast(newIncident)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rescue_tickets' },
+        (payload) => {
+          const updated = payload.new as Incident
+          const oldRecord = payload.old as Partial<Incident>
+          dispatch(updateIncident(updated))
+
+          // Real-time toast feedback when agency accepts or declines dispatch
+          if (updated.status === 'responding' && oldRecord.status !== 'responding') {
+            const acceptToast: Incident = {
+              ...updated,
+              severity: 'low',
+              ai_summary: `🟢 ${updated.assigned_agency_name || 'Response Agency'} accepted dispatch and is now en route!`
+            }
+            pushToast(acceptToast)
+          } else if (oldRecord.assigned_agency_name && !updated.assigned_agency_name && updated.status === 'pending') {
+            const declineToast: Incident = {
+              ...updated,
+              severity: 'high',
+              ai_summary: `🔴 Agency declined dispatch offer for ${updated.disaster_type} incident. Please select another agency to re-route!`
+            }
+            pushToast(declineToast)
+          }
         }
       )
       .subscribe()
@@ -70,35 +101,6 @@ export default function LGUShell() {
     } catch (e) {
       console.error('Status change error:', e)
     }
-  }
-
-  // Trigger demo toast for instant user verification
-  const triggerDemoAlert = (severity: Incident['severity'] = 'critical') => {
-    const sampleIncident: Incident = {
-      id: `demo-${Date.now()}`,
-      channel: 'web',
-      disaster_type: severity === 'critical' ? 'Flood & Fire' : severity === 'high' ? 'Landslide' : 'Flooding',
-      location_text: 'Barangay San Jose, Pasig City',
-      latitude: 14.5772,
-      longitude: 121.1234,
-      people_affected: severity === 'critical' ? 12 : 4,
-      severity,
-      status: 'pending',
-      priority_score: severity === 'critical' ? 98 : severity === 'high' ? 82 : 55,
-      ai_summary: `AI Validated ${severity.toUpperCase()} Alert: Rapidly rising chest-deep flood waters trapped residents on roof. Emergency dispatch required.`,
-      media_urls: [
-        'https://images.unsplash.com/photo-1547683905-f686c993aae5?w=600&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop',
-      ],
-      raw_message: 'Saklolo po! Lagpas tao na ang baha dito sa San Jose Pasig, may 12 katao po kami dito!',
-      fb_sender_id: null,
-      reporter_name: 'Maria Santos',
-      reporter_contact: '09171234567',
-      ip_address: '127.0.0.1',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-    pushToast(sampleIncident)
   }
 
   return (
@@ -142,24 +144,20 @@ export default function LGUShell() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Demo AI Alert Trigger Button */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => triggerDemoAlert('critical')}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-red-700 hover:bg-red-800 rounded transition-colors shadow-xs"
-                title="Test Critical Toast Alert"
+            {/* AI Alert Indicators */}
+            <div className="flex items-center gap-1.5">
+              <span
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-red-700 rounded shadow-xs select-none"
+                title="Critical Alerts Indicator"
               >
-                <Zap size={11} /> Critical Alert
-              </button>
-              <button
-                type="button"
-                onClick={() => triggerDemoAlert('high')}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors shadow-xs"
-                title="Test High Toast Alert"
+                <Zap size={11} /> Critical Alert {criticalCount > 0 ? `(${criticalCount})` : ''}
+              </span>
+              <span
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-orange-600 rounded shadow-xs select-none"
+                title="High Alerts Indicator"
               >
-                High Alert
-              </button>
+                High Alert {highCount > 0 ? `(${highCount})` : ''}
+              </span>
             </div>
 
             <div className="relative">
