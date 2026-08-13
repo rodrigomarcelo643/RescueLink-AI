@@ -7,9 +7,15 @@ import ProofCarousel from '@/components/incidents/ProofCarousel'
 import LiveTrackingMap from '@/components/incidents/LiveTrackingMap'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
+import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
+import type { ResponseAgency } from '@/types/responseAgency'
+import { useModal } from '@/context/ModalContext'
+import { deleteIncident, assignAgencyToIncident } from '@/services/incidents.service'
+import { removeIncident } from '@/redux/slices/incidentSlice'
+import { useDispatch } from 'react-redux'
 import {
   X, MapPin, Users, Clock, Radio, User, Phone,
-  AlertTriangle, ShieldAlert, FileText, Sparkles, Send, Building2, Navigation
+  AlertTriangle, ShieldAlert, FileText, Sparkles, Building2, Navigation, Trash2, CheckCircle2, Lock
 } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
@@ -19,10 +25,18 @@ const SEVERITY_DOT: Record<string, string> = {
   critical: '#b91c1c',
 }
 
+const STATUS_ACTION_LABELS: Record<Incident['status'], string> = {
+  pending: 'Set to Pending ⏳',
+  responding: 'Set to Responding 🚒',
+  rescued: 'Set to Rescued 🟢',
+  closed: 'Set to Closed 🔒',
+}
+
 interface IncidentDetailsModalProps {
   incident: Incident | null
   onClose: () => void
   onStatusChange?: (id: string, status: Incident['status']) => void
+  onDelete?: (id: string) => void
   initialTab?: 'details' | 'map'
 }
 
@@ -30,9 +44,14 @@ export default function IncidentDetailsModal({
   incident,
   onClose,
   onStatusChange,
+  onDelete,
   initialTab = 'details',
 }: IncidentDetailsModalProps) {
+  const { openModal } = useModal()
+  const dispatch = useDispatch()
   const [agencyMatch, setAgencyMatch] = useState<AgencyMatchResult | null>(null)
+  const [manualAgency, setManualAgency] = useState<ResponseAgency | null>(null)
+  const [showAssignModal, setShowAssignModal] = useState(false)
   const [dispatched, setDispatched] = useState(false)
   const [activeTab, setActiveTab] = useState<'details' | 'map'>(initialTab)
 
@@ -44,12 +63,15 @@ export default function IncidentDetailsModal({
     window.addEventListener('keydown', handleKeyDown)
 
     // Compute AI agency match
-    matchNearestAgency(incident).then((res) => setAgencyMatch(res))
+    matchNearestAgency(incident).then((res) => setAgencyMatch(res)).catch(() => {})
 
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [incident, onClose])
 
   if (!incident) return null
+
+  const activeAgencyName = manualAgency?.name || agencyMatch?.agency.name || 'BFP Labangon Fire Sub-Station 🚒'
+  const activeAgencyContact = manualAgency?.contacts?.[0]?.value || agencyMatch?.agency.contacts?.[0]?.value || '(032) 261-2222'
 
   const incLat = incident.latitude ?? 14.5772
   const incLng = incident.longitude ?? 121.1234
@@ -57,15 +79,38 @@ export default function IncidentDetailsModal({
   const responderInfo = {
     lat: incLat + 0.014,
     lng: incLng - 0.016,
-    unitName: agencyMatch?.agency.name || 'BFP Labangon Fire Sub-Station 🚒',
-    contact: agencyMatch?.agency.contacts?.[0]?.value || '(032) 261-2222',
+    unitName: activeAgencyName,
+    contact: activeAgencyContact,
   }
 
-  const handleDispatch = () => {
-    setDispatched(true)
-    if (onStatusChange) {
-      onStatusChange(incident.id, 'responding')
+  const handleDispatch = async () => {
+    if (agencyMatch?.agency) {
+      await assignAgencyToIncident(incident.id, agencyMatch.agency.id, agencyMatch.agency.name, agencyMatch.agency.username || undefined)
+      setDispatched(true)
     }
+  }
+
+  const handleManualAssign = async (_incidentId: string, agency: ResponseAgency) => {
+    await assignAgencyToIncident(incident.id, agency.id, agency.name, agency.username || undefined)
+    setManualAgency(agency)
+    setDispatched(true)
+  }
+
+  const handleDelete = () => {
+    openModal({
+      title: 'Delete Incident Ticket',
+      description: `Are you sure you want to delete this incident report (${incident.disaster_type} at ${incident.location_text})? This action cannot be undone.`,
+      icon: <Trash2 size={20} className="text-red-600" />,
+      confirmLabel: 'Delete Ticket',
+      cancelLabel: 'Keep Ticket',
+      danger: true,
+      onConfirm: async () => {
+        await deleteIncident(incident.id)
+        dispatch(removeIncident(incident.id))
+        if (onDelete) onDelete(incident.id)
+        onClose()
+      },
+    })
   }
 
   return createPortal(
@@ -142,9 +187,15 @@ export default function IncidentDetailsModal({
                     <Navigation size={13} className="text-blue-600" />
                     Live Google Maps Driving Route Navigation
                   </span>
-                  <span className="text-[11px] font-bold text-emerald-600">
-                    Live GPS Telemetry Active
-                  </span>
+                  {incident.status !== 'closed' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAssignModal(true)}
+                      className="flex items-center gap-1.5 px-3 py-1 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-xs transition-colors"
+                    >
+                      <Building2 size={12} /> Assign / Change Agency
+                    </button>
+                  )}
                 </div>
 
                 <LiveTrackingMap
@@ -197,62 +248,76 @@ export default function IncidentDetailsModal({
                   </div>
                 )}
 
-                {/* 🤖 AI Assigned Agency Card (Cebu City & Labangon) */}
-                {agencyMatch && (
-                  <div className="rounded-lg bg-blue-50/80 p-4 border border-blue-200 flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-xs font-black uppercase text-blue-900 tracking-wider">
-                        <Sparkles size={14} className="text-blue-600" /> AI Assigned Response Agency (Cebu)
-                      </span>
-                      <span className="px-2 py-0.5 text-[10px] font-extrabold bg-blue-600 text-white rounded">
-                        {agencyMatch.distanceKm} km away
-                      </span>
-                    </div>
+                {/* Assigned Agency Card */}
+                <div className="rounded-lg bg-blue-50/80 p-4 border border-blue-200 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-black uppercase text-blue-900 tracking-wider">
+                      <Sparkles size={14} className="text-blue-600" /> Assigned Response Agency
+                    </span>
+                    {incident.status !== 'closed' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAssignModal(true)}
+                        className="px-2.5 py-1 text-[11px] font-extrabold bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
+                      >
+                        Manually Assign Agency
+                      </button>
+                    )}
+                  </div>
 
-                    <div className="flex items-start gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-blue-600 text-white font-bold shrink-0 shadow-xs">
-                        <Building2 size={20} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-extrabold text-gray-900">
-                          {agencyMatch.agency.name}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {agencyMatch.agency.address ?? 'Cebu City Emergency Station'}
-                        </p>
-                        <p className="text-[11px] text-blue-700 mt-1 font-semibold">
-                          {agencyMatch.aiReason}
-                        </p>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-blue-600 text-white font-bold shrink-0 shadow-xs">
+                      <Building2 size={20} />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-extrabold text-gray-900">
+                        {manualAgency?.name || agencyMatch?.agency.name || 'BFP Labangon Fire Sub-Station'}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {manualAgency?.address || agencyMatch?.agency.address || 'Cebu City Emergency Station'}
+                      </p>
+                      <p className="text-[11px] text-blue-700 mt-1 font-semibold">
+                        {manualAgency ? 'Manually Assigned Agency' : (agencyMatch?.aiReason || 'Automated AI Sector Match')}
+                      </p>
+                    </div>
+                  </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-200/60 text-xs">
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <span className="flex items-center gap-1 font-bold">
-                          <Phone size={12} className="text-blue-600" />
-                          {agencyMatch.agency.contacts?.[0]?.value || 'Hotline 911'}
-                        </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-200/60 text-xs">
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <span className="flex items-center gap-1 font-bold">
+                        <Phone size={12} className="text-blue-600" />
+                        {activeAgencyContact}
+                      </span>
+                      {agencyMatch && (
                         <span className="text-emerald-700 font-extrabold">
                           Estimated ETA: ~{agencyMatch.estimatedTimeMin} mins
                         </span>
-                      </div>
+                      )}
+                    </div>
 
+                    {incident.status === 'rescued' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200">
+                        <CheckCircle2 size={13} className="text-emerald-600" /> Rescue Completed & Safe
+                      </span>
+                    ) : incident.status === 'closed' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-gray-100 text-gray-700 rounded-md border border-gray-200">
+                        <Lock size={13} className="text-gray-500" /> Ticket Closed & Archived
+                      </span>
+                    ) : dispatched || (incident.assigned_agency_name && incident.assigned_agency_id) ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold bg-amber-600 text-white rounded-md shadow-xs">
+                        ✓ Agency Assigned — Pending Acceptance
+                      </span>
+                    ) : (
                       <button
                         type="button"
                         onClick={handleDispatch}
-                        disabled={dispatched || incident.status === 'responding'}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-md transition-all shadow-xs ${
-                          dispatched || incident.status === 'responding'
-                            ? 'bg-emerald-600 text-white cursor-default'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        }`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-xs transition-colors"
                       >
-                        <Send size={12} />
-                        {dispatched || incident.status === 'responding' ? '✓ Agency Dispatched En Route' : 'Dispatch Agency Now'}
+                        <Building2 size={12} /> Assign Response Agency
                       </button>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 {/* Raw Message */}
                 {incident.raw_message && (
@@ -362,33 +427,53 @@ export default function IncidentDetailsModal({
               </>
             )}
 
-            {/* Status Change Bar */}
-            {onStatusChange && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4 mt-2">
-                <span className="text-xs font-semibold text-gray-500">Update Ticket Status:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(['pending', 'responding', 'rescued', 'closed'] as Incident['status'][])
-                    .filter((s) => s !== incident.status)
-                    .map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => {
-                          onStatusChange(incident.id, s)
-                          onClose()
-                        }}
-                        className="px-3 py-1.5 text-xs font-extrabold capitalize text-gray-700 bg-gray-50 hover:bg-red-50 hover:text-red-700 transition-colors border border-gray-200 rounded-md"
-                      >
-                        Mark {s}
-                      </button>
-                    ))}
-                </div>
+            {/* Status Change & Delete Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 mt-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {onStatusChange && incident.status !== 'rescued' && incident.status !== 'closed' && (
+                  <>
+                    <span className="text-xs font-bold text-gray-500">Update Status:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(['pending', 'responding', 'rescued', 'closed'] as Incident['status'][])
+                        .filter((s) => s !== incident.status)
+                        .map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => {
+                              onStatusChange(incident.id, s)
+                              onClose()
+                            }}
+                            className="px-3 py-1.5 text-xs font-extrabold capitalize text-gray-700 bg-gray-50 hover:bg-red-50 hover:text-red-700 transition-colors border border-gray-200 rounded-md"
+                          >
+                            {STATUS_ACTION_LABELS[s]}
+                          </button>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold text-white bg-red-600 hover:bg-red-700 rounded-md shadow-xs transition-colors"
+              >
+                <Trash2 size={13} /> Delete Ticket
+              </button>
+            </div>
 
           </div>
         </motion.div>
       </div>
+
+      {showAssignModal && (
+        <AgencyAssignModal
+          incident={incident}
+          onClose={() => setShowAssignModal(false)}
+          onAssign={handleManualAssign}
+        />
+      )}
     </AnimatePresence>,
     document.body
   )
