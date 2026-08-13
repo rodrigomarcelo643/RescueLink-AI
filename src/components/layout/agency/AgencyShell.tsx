@@ -4,6 +4,8 @@ import { PanelLeftOpen, PanelLeftClose, Bell, ShieldCheck } from 'lucide-react'
 import AgencySidebar from './AgencySidebar'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/services/supabase'
+import { updateAgencyStatus } from '@/services/responseAgencies.service'
+import { updateAgencySession } from '@/services/agencyAuth.service'
 import type { Incident } from '@/types/incident'
 
 const PAGE_TITLES: Record<string, string> = {
@@ -14,32 +16,44 @@ const PAGE_TITLES: Record<string, string> = {
 
 export type ReadinessStatus = 'available' | 'busy' | 'offline'
 
+const STATUS_CONFIG: Record<ReadinessStatus, { label: string; active: string; idle: string }> = {
+  available: { label: '🟢 Available', active: 'bg-emerald-600 text-white shadow-2xs', idle: 'text-gray-600 hover:text-emerald-700' },
+  busy:      { label: '🟡 On Scene',  active: 'bg-amber-500 text-white shadow-2xs',   idle: 'text-gray-600 hover:text-amber-700'   },
+  offline:   { label: '🔴 Offline',   active: 'bg-gray-700 text-white shadow-2xs',    idle: 'text-gray-600 hover:text-gray-900'    },
+}
+
 export default function AgencyShell() {
   const { agency } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [readiness, setReadiness] = useState<ReadinessStatus>('available')
+  const [statusUpdating, setStatusUpdating] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [dispatches, setDispatches] = useState<Incident[]>([])
   const location = useLocation()
 
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'Response Agency Portal'
 
-  // Sync operational status with database if agency exists
+  // Restore status from session on mount
   useEffect(() => {
-    if (!agency?.id) return
-    const updateReadinessInDb = async () => {
-      try {
-        await supabase
-          .from('response_agencies')
-          .update({ is_active: readiness !== 'offline' })
-          .eq('id', agency.id)
-      } catch (e) {
-        console.warn('Could not update readiness status:', e)
-      }
+    if (!agency) return
+    const saved = agency.operational_status as ReadinessStatus | undefined
+    setReadiness(saved && saved in STATUS_CONFIG ? saved : 'available')
+  }, [agency?.id])
+
+  const handleReadinessChange = async (status: ReadinessStatus) => {
+    if (!agency?.id || statusUpdating || readiness === status) return
+    setReadiness(status)
+    setStatusUpdating(true)
+    try {
+      const fresh = await updateAgencyStatus(agency.id, status)
+      // Persist to session — use DB result if available, otherwise patch current session
+      const updated = fresh ?? { ...agency, operational_status: status, is_active: status !== 'offline' }
+      updateAgencySession(updated)
+    } finally {
+      setStatusUpdating(false)
     }
-    updateReadinessInDb()
-  }, [readiness, agency?.id])
+  }
 
   // Realtime Supabase listener for dispatch offers to this agency
   useEffect(() => {
@@ -53,19 +67,19 @@ export default function AgencyShell() {
         (payload) => {
           const inc = payload.new as Incident
           if (!inc) return
-          const isTarget = inc.assigned_agency_id === agency.id ||
-            (inc.assigned_agency_name && inc.assigned_agency_name.toLowerCase().includes(agency.name.toLowerCase()))
+          const isTarget =
+            inc.assigned_agency_id === agency.id ||
+            (inc.assigned_agency_name &&
+              inc.assigned_agency_name.toLowerCase().includes(agency.name.toLowerCase()))
 
           if (isTarget && inc.status === 'pending') {
-            setDispatches((prev) => [inc, ...prev.filter(i => i.id !== inc.id)])
+            setDispatches((prev) => [inc, ...prev.filter((i) => i.id !== inc.id)])
           }
         }
       )
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [agency])
 
   return (
@@ -73,7 +87,7 @@ export default function AgencyShell() {
       <AgencySidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}
-        onToggleCollapse={() => setCollapsed(c => !c)}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
         onCloseMobile={() => setMobileOpen(false)}
       />
 
@@ -82,7 +96,7 @@ export default function AgencyShell() {
         <header className="flex h-14 shrink-0 items-center justify-between bg-white px-4 border-b border-gray-200 shadow-2xs">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCollapsed(c => !c)}
+              onClick={() => setCollapsed((c) => !c)}
               className="hidden size-8 items-center justify-center text-gray-500 hover:text-gray-900 lg:flex rounded"
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
@@ -94,49 +108,35 @@ export default function AgencyShell() {
             >
               <PanelLeftOpen size={18} />
             </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold tracking-tight text-gray-900">{pageTitle}</span>
-            </div>
+            <span className="text-sm font-extrabold tracking-tight text-gray-900">{pageTitle}</span>
           </div>
 
           {/* Operational Readiness Status Switcher */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md border border-gray-200 text-xs font-bold">
-              <span className="text-[10px] uppercase text-gray-400 font-extrabold px-1.5 hidden sm:inline">Status:</span>
-              <button
-                type="button"
-                onClick={() => setReadiness('available')}
-                className={`px-2 py-0.5 rounded text-[11px] font-extrabold transition-all ${
-                  readiness === 'available' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-gray-600 hover:text-emerald-700'
-                }`}
-              >
-                🟢 Available
-              </button>
-              <button
-                type="button"
-                onClick={() => setReadiness('busy')}
-                className={`px-2 py-0.5 rounded text-[11px] font-extrabold transition-all ${
-                  readiness === 'busy' ? 'bg-amber-500 text-white shadow-2xs' : 'text-gray-600 hover:text-amber-700'
-                }`}
-              >
-                🟡 On Scene
-              </button>
-              <button
-                type="button"
-                onClick={() => setReadiness('offline')}
-                className={`px-2 py-0.5 rounded text-[11px] font-extrabold transition-all ${
-                  readiness === 'offline' ? 'bg-gray-700 text-white shadow-2xs' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                🔴 Offline
-              </button>
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md border border-gray-200">
+              <span className="text-[10px] uppercase text-gray-400 font-extrabold px-1.5 hidden sm:inline">
+                Status:
+              </span>
+              {(Object.keys(STATUS_CONFIG) as ReadinessStatus[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={statusUpdating}
+                  onClick={() => handleReadinessChange(s)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-extrabold transition-all disabled:opacity-60 ${
+                    readiness === s ? STATUS_CONFIG[s].active : STATUS_CONFIG[s].idle
+                  }`}
+                >
+                  {STATUS_CONFIG[s].label}
+                </button>
+              ))}
             </div>
 
-            {/* Realtime Notification Bell Icon */}
+            {/* Realtime Notification Bell */}
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setNotifOpen(o => !o)}
+                onClick={() => setNotifOpen((o) => !o)}
                 className="relative flex size-8 items-center justify-center text-gray-500 hover:text-gray-900 rounded"
               >
                 <Bell size={18} />
@@ -148,18 +148,31 @@ export default function AgencyShell() {
               {notifOpen && (
                 <div className="absolute right-0 top-10 z-50 w-72 rounded-lg bg-white shadow-xl border border-gray-200">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <span className="text-xs font-extrabold text-gray-900">Dispatch Offers ({dispatches.length})</span>
-                    <button onClick={() => setNotifOpen(false)} className="text-[11px] text-gray-400 hover:text-gray-600 font-bold">Close</button>
+                    <span className="text-xs font-extrabold text-gray-900">
+                      Dispatch Offers ({dispatches.length})
+                    </span>
+                    <button
+                      onClick={() => setNotifOpen(false)}
+                      className="text-[11px] text-gray-400 hover:text-gray-600 font-bold"
+                    >
+                      Close
+                    </button>
                   </div>
                   <div className="flex flex-col divide-y divide-gray-50 max-h-60 overflow-y-auto">
                     {dispatches.length === 0 ? (
-                      <div className="px-4 py-3 text-xs text-gray-400 italic text-center">No pending dispatch offers</div>
+                      <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
+                        No pending dispatch offers
+                      </div>
                     ) : (
                       dispatches.map((inc) => (
                         <div key={inc.id} className="px-4 py-3 flex flex-col gap-1">
-                          <p className="text-xs font-bold text-gray-900 capitalize">{inc.disaster_type} — {inc.severity} priority</p>
+                          <p className="text-xs font-bold text-gray-900 capitalize">
+                            {inc.disaster_type} — {inc.severity} priority
+                          </p>
                           <p className="text-[11px] text-gray-500 truncate">{inc.location_text}</p>
-                          <span className="text-[10px] text-amber-700 font-bold">⚡ Offer Pending Acceptance</span>
+                          <span className="text-[10px] text-amber-700 font-bold">
+                            ⚡ Offer Pending Acceptance
+                          </span>
                         </div>
                       ))
                     )}
