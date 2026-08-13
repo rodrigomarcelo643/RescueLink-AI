@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   MapPin, Users, Clock, AlertTriangle, CheckCircle,
   Loader2, ChevronLeft, Image as ImageIcon, X,
-  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Play
+  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Play, Building2
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import type { Incident } from '@/types/incident'
 import LiveTrackingMap from '@/components/incidents/LiveTrackingMap'
 import { isVideoUrl } from '@/components/incidents/ProofCarousel'
+import { getResponseAgencies } from '@/services/responseAgencies.service'
+import { matchNearestAgency } from '@/services/agencyMatcher.service'
+import type { ResponseAgency } from '@/types/responseAgency'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -54,7 +57,7 @@ export default function TrackReport() {
   const trackUrl = `${window.location.origin}/track/${id}`
 
   // Fetch initial ticket data & subscribe to realtime status changes
-  useEffect(() => {
+  const fetchTicketData = useCallback(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
 
     supabase
@@ -63,10 +66,18 @@ export default function TrackReport() {
       .eq('id', id)
       .single()
       .then(({ data, error }) => {
-        if (error || !data) {
-          // If mock ticket ID, construct sample incident
-          if (id.startsWith('mock-') || id.startsWith('web-') || id.startsWith('demo-')) {
-            setIncident({
+        if (!error && data) {
+          setIncident(data as Incident)
+          setNotFound(false)
+        } else {
+          // Check local cached incidents as fallback for demo/mock IDs
+          const localCached: Incident[] = JSON.parse(localStorage.getItem('cached_incidents') || '[]')
+          const foundLocal = localCached.find((item) => item.id === id)
+          if (foundLocal) {
+            setIncident(foundLocal)
+            setNotFound(false)
+          } else if (id.startsWith('mock-') || id.startsWith('web-') || id.startsWith('demo-')) {
+            setIncident((prev) => prev || {
               id,
               channel: 'web',
               disaster_type: 'Flood',
@@ -75,7 +86,7 @@ export default function TrackReport() {
               longitude: 121.1234,
               people_affected: 8,
               severity: 'critical',
-              status: 'responding',
+              status: 'pending',
               priority_score: 95,
               ai_summary: 'Severe chest-deep flood waters trapped family of 8 on roof of 2-story house.',
               media_urls: [
@@ -93,20 +104,27 @@ export default function TrackReport() {
           } else {
             setNotFound(true)
           }
-        } else {
-          setIncident(data as Incident)
         }
         setLoading(false)
       })
+  }, [id])
 
-    // Supabase Realtime channel for this ticket
+  useEffect(() => {
+    fetchTicketData()
+
+    // Realtime channel for rescue_tickets table changes
     const channel = supabase
       .channel(`ticket_track_${id}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'rescue_tickets', filter: `id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'rescue_tickets' },
         (payload) => {
-          setIncident((prev) => (prev ? { ...prev, ...(payload.new as Incident) } : (payload.new as Incident)))
+          const newRec = payload.new as Incident | undefined
+          if (newRec && newRec.id === id) {
+            setIncident(newRec)
+          } else {
+            fetchTicketData()
+          }
         }
       )
       .subscribe()
@@ -114,7 +132,7 @@ export default function TrackReport() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [id])
+  }, [id, fetchTicketData])
 
   // Keyboard nav for lightbox
   useEffect(() => {
@@ -127,6 +145,31 @@ export default function TrackReport() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [lightbox, incident])
+  // Fetch agency station details for map starting point
+  const [assignedAgencyObj, setAssignedAgencyObj] = useState<ResponseAgency | null>(null)
+
+  useEffect(() => {
+    if (!incident) return
+    const fetchAgencyInfo = async () => {
+      const list = await getResponseAgencies()
+      if (incident.assigned_agency_id || incident.assigned_agency_name) {
+        const found = list.find(
+          (a) =>
+            (incident.assigned_agency_id && (a.id === incident.assigned_agency_id || a.username === incident.assigned_agency_id)) ||
+            (incident.assigned_agency_name && (a.name?.toLowerCase().includes(incident.assigned_agency_name.toLowerCase()) || incident.assigned_agency_name.toLowerCase().includes(a.name?.toLowerCase() || '')))
+        )
+        if (found) {
+          setAssignedAgencyObj(found)
+          return
+        }
+      }
+      const matched = await matchNearestAgency(incident, list)
+      if (matched?.agency) {
+        setAssignedAgencyObj(matched.agency)
+      }
+    }
+    fetchAgencyInfo()
+  }, [incident?.id, incident?.assigned_agency_id, incident?.assigned_agency_name])
 
   if (loading) {
     return (
@@ -153,14 +196,18 @@ export default function TrackReport() {
   const photos = inc.media_urls ?? []
 
   const incLat = inc.latitude ?? 14.5772
-  const incLng = inc.longitude ?? 121.1234
+  const incLng = inc.longitude ?? 123.8854
 
-  // Responder coordinates & team info
+  // Responder coordinates & actual assigned team info
+  const assignedAgency = assignedAgencyObj?.name || inc.assigned_agency_name || null
+  const responderLat = assignedAgencyObj?.latitude ?? (incLat + 0.014)
+  const responderLng = assignedAgencyObj?.longitude ?? (incLng - 0.016)
+
   const responderInfo = {
-    lat: incLat + 0.014,
-    lng: incLng - 0.016,
-    unitName: 'BFP Labangon Fire Sub-Station 🚒',
-    contact: '(032) 261-2222',
+    lat: responderLat,
+    lng: responderLng,
+    unitName: assignedAgencyObj?.name || inc.assigned_agency_name || 'Assigned Response Unit',
+    contact: assignedAgencyObj?.contacts?.[0]?.value || 'Emergency Hotlines 911',
   }
 
   const toggleSimulateResponding = () => {
@@ -198,7 +245,7 @@ export default function TrackReport() {
         </span>
       </div>
 
-      <div className="mx-auto max-w-2xl px-5 py-8">
+      <div className="mx-auto max-w-2xl px-3.5 sm:px-5 py-4 sm:py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -285,13 +332,19 @@ export default function TrackReport() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="rounded-xl bg-amber-50 p-4 border border-amber-200 text-amber-900 flex items-center gap-3"
+                className="rounded-xl bg-amber-50 p-4 border border-amber-200 text-amber-900 flex items-center gap-3 shadow-xs"
               >
                 <Clock size={24} className="text-amber-600 shrink-0 animate-spin" />
                 <div>
-                  <h3 className="text-sm font-extrabold">⏳ Report Received — Dispatching Response Agency</h3>
+                  <h3 className="text-sm font-extrabold">
+                    {assignedAgency
+                      ? `⏳ Agency Assigned (${assignedAgency}) — Awaiting Acceptance`
+                      : '⏳ Report Received — Awaiting Response Agency Acceptance & Dispatch'}
+                  </h3>
                   <p className="text-xs text-amber-700 mt-0.5">
-                    AI has validated your report. LGU dispatchers are assigning the nearest response agency (BFP Labangon / ERUF) to your location.
+                    {assignedAgency
+                      ? `Report has been dispatched to ${assignedAgency}. Station notification sent — awaiting unit acceptance and team deployment.`
+                      : 'AI has validated your report and notified emergency command units. Waiting for a response agency unit to accept and respond.'}
                   </p>
                 </div>
               </motion.div>
@@ -371,14 +424,16 @@ export default function TrackReport() {
           </div>
 
           {/* Details card */}
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 8 }} className="overflow-hidden bg-white">
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 8 }} className="overflow-hidden bg-white shadow-xs">
             <Row label="Ticket ID">
-              <span className="break-all font-mono text-xs font-bold text-gray-700">{inc.id}</span>
+              <span className="break-all font-mono text-xs font-extrabold text-gray-900 bg-gray-100 px-2.5 py-1 rounded border border-gray-200 inline-block max-w-full">
+                {inc.id}
+              </span>
             </Row>
             <Row label="Location">
-              <span className="flex items-center gap-1.5 text-sm text-gray-700 font-semibold">
-                <MapPin size={13} className="shrink-0 text-red-600" />
-                {inc.location_text}
+              <span className="flex items-start gap-1.5 text-sm text-gray-800 font-semibold break-words">
+                <MapPin size={14} className="shrink-0 text-red-600 mt-0.5" />
+                <span>{inc.location_text}</span>
               </span>
             </Row>
             {(inc.latitude && inc.longitude) && (
@@ -411,6 +466,14 @@ export default function TrackReport() {
             <Row label="Channel">
               <span className="text-sm capitalize text-gray-700">{inc.channel}</span>
             </Row>
+            {assignedAgency && (
+              <Row label="Assigned Unit">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black text-blue-800 bg-blue-50 px-2.5 py-1 rounded border border-blue-200">
+                  <Building2 size={13} className="text-blue-600 shrink-0" />
+                  {assignedAgency}
+                </span>
+              </Row>
+            )}
             {inc.reporter_name && (
               <Row label="Reported By">
                 <span className="text-sm text-gray-700">{inc.reporter_name}</span>
@@ -573,9 +636,9 @@ export default function TrackReport() {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-4 border-b border-gray-50 px-4 py-3 last:border-0">
-      <span className="w-32 shrink-0 text-[11px] font-bold uppercase tracking-widest text-gray-400 pt-0.5">{label}</span>
-      <div className="flex-1">{children}</div>
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 border-b border-gray-100 px-4 py-3 last:border-0">
+      <span className="w-full sm:w-32 shrink-0 text-[11px] font-bold uppercase tracking-widest text-gray-400 sm:pt-0.5">{label}</span>
+      <div className="flex-1 min-w-0 break-words font-medium text-gray-800">{children}</div>
     </div>
   )
 }
