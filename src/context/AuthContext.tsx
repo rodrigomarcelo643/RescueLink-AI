@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/services/supabase'
+import { getAgencySession, signOutAgency } from '@/services/agencyAuth.service'
+import type { ResponseAgency } from '@/types/responseAgency'
 
-export type UserRole = 'citizen' | 'lgu' | 'ngo' | 'volunteer' | 'admin'
+export type UserRole = 'citizen' | 'lgu' | 'ngo' | 'volunteer' | 'admin' | 'agency'
 
 export interface Profile {
   id: string
@@ -16,6 +18,7 @@ export interface Profile {
 interface AuthContextValue {
   user: User | null
   profile: Profile | null
+  agency: ResponseAgency | null
   role: UserRole | null
   loading: boolean
   signOut: () => Promise<void>
@@ -27,6 +30,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [agency, setAgency] = useState<ResponseAgency | null>(() => getAgencySession())
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (userId: string) => {
@@ -39,6 +43,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Check if logged in as response agency first
+    const activeAgency = getAgencySession()
+    if (activeAgency) {
+      setAgency(activeAgency)
+      setProfile({
+        id: activeAgency.id,
+        full_name: activeAgency.name,
+        role: 'agency',
+        barangay: null,
+        municipality: null,
+        phone: activeAgency.contacts?.[0]?.value || null,
+      })
+      setLoading(false)
+      return
+    }
+
     supabase.auth.getSession().then(async ({ data }) => {
       const u = data.session?.user ?? null
       setUser(u)
@@ -46,14 +66,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null
       setUser(u)
+
       if (u) {
-        setLoading(true)
-        await fetchProfile(u.id)
+        if (event !== 'TOKEN_REFRESHED') {
+          await fetchProfile(u.id)
+        }
       } else {
-        setProfile(null)
+        // If not agency, clear profile
+        if (!getAgencySession()) {
+          setProfile(null)
+        }
       }
       setLoading(false)
     })
@@ -62,17 +87,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
+    signOutAgency()
+    setAgency(null)
     await supabase.auth.signOut()
     setUser(null)
     setProfile(null)
   }
 
   const refreshProfile = async () => {
+    const activeAgency = getAgencySession()
+    if (activeAgency) {
+      setAgency(activeAgency)
+      setProfile({
+        id: activeAgency.id,
+        full_name: activeAgency.name,
+        role: 'agency',
+        barangay: null,
+        municipality: null,
+        phone: activeAgency.contacts?.[0]?.value || null,
+      })
+      return
+    }
     if (user) await fetchProfile(user.id)
   }
 
+  const computedRole: UserRole | null = agency ? 'agency' : profile?.role ?? null
+
   return (
-    <AuthContext.Provider value={{ user, profile, role: profile?.role ?? null, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, agency, role: computedRole, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
