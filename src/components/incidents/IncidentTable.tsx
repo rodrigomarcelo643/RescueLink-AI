@@ -7,7 +7,11 @@ import ProofCarousel from '@/components/incidents/ProofCarousel'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
-import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2, Map, CheckCircle2, Lock } from 'lucide-react'
+import { assignAgencyToIncident } from '@/services/incidents.service'
+import { updateIncident } from '@/redux/slices/incidentSlice'
+import { useDispatch } from 'react-redux'
+import { useModal } from '@/context/ModalContext'
+import { MapPin, Users, Clock, Radio, User, MoreVertical, Eye, Navigation, Building2, Map, Trash2 } from 'lucide-react'
 
 const SEVERITY_DOT: Record<string, string> = {
   low: '#22c55e',
@@ -16,36 +20,40 @@ const SEVERITY_DOT: Record<string, string> = {
   critical: '#b91c1c',
 }
 
-function getCategoryMatchedAgencyName(disasterType?: string): string {
-  const dt = (disasterType || '').toLowerCase()
-  if (dt.includes('landslide') || dt.includes('guho') || dt.includes('soil')) return 'CCDRRMO Landslide Unit'
-  if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury')) return 'Red Cross Medical Unit'
-  if (dt.includes('flood') || dt.includes('baha') || dt.includes('water')) return 'Coast Guard & CCDRRMO Flood Unit'
-  if (dt.includes('police') || dt.includes('crime')) return 'PNP Station 10 Labangon'
-  return 'BFP Labangon Fire Sub-Station'
+const STATUS_ACTION_LABELS: Record<Incident['status'], string> = {
+  pending: 'Set to Pending ⏳',
+  responding: 'Set to Responding 🚒',
+  rescued: 'Set to Rescued 🟢',
+  closed: 'Set to Closed 🔒',
 }
 
 interface IncidentTableProps {
   incidents: Incident[]
   onStatusChange: (id: string, status: Incident['status']) => void
   onAssignAgency?: (id: string, agency: ResponseAgency) => void
+  onDelete?: (id: string) => void
 }
 
 function ActionMenu({
+  incidentId,
   currentStatus,
   onStatusChange,
   onViewDetails,
   onViewMap,
   onOpenAssignModal,
+  onDelete,
 }: {
+  incidentId: string
   currentStatus: Incident['status']
   onStatusChange: (status: Incident['status']) => void
   onViewDetails: () => void
   onViewMap: () => void
   onOpenAssignModal: () => void
+  onDelete?: (id: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const { openModal } = useModal()
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -108,8 +116,8 @@ function ActionMenu({
               Live Track Map
             </button>
 
-            {/* Assign Agency Option (Disabled when closed or rescued) */}
-            {!isClosedOrRescued ? (
+            {/* Assign Agency Option */}
+            {currentStatus !== 'closed' && (
               <button
                 type="button"
                 onClick={() => {
@@ -119,33 +127,58 @@ function ActionMenu({
                 className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
               >
                 <Navigation size={13} className="text-blue-600" />
-                Assign Agency (AI Route)
+                {currentStatus === 'rescued' ? 'Assign/Change Agency' : 'Assign Agency (AI Route)'}
               </button>
-            ) : (
-              <div className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed flex items-center gap-2">
-                <Lock size={12} className="text-gray-300" />
-                Assignment Locked ({currentStatus})
-              </div>
             )}
 
-            <div className="my-1 border-t border-gray-100" />
+            {!isClosedOrRescued && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <div className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                  Set Status
+                </div>
+                {available.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => {
+                      onStatusChange(status)
+                      setOpen(false)
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
+                  >
+                    {STATUS_ACTION_LABELS[status]}
+                  </button>
+                ))}
+              </>
+            )}
 
-            <div className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
-              Set Status
-            </div>
-            {available.map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => {
-                  onStatusChange(status)
-                  setOpen(false)
-                }}
-                className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
-              >
-                Mark {status}
-              </button>
-            ))}
+            {onDelete && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    openModal({
+                      title: 'Delete Incident Ticket',
+                      description: 'Are you sure you want to delete this incident report? This action cannot be undone.',
+                      icon: <Trash2 size={20} className="text-red-600" />,
+                      confirmLabel: 'Delete Ticket',
+                      cancelLabel: 'Cancel',
+                      danger: true,
+                      onConfirm: async () => {
+                        await onDelete(incidentId)
+                      },
+                    })
+                    setOpen(false)
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-2"
+                >
+                  <Trash2 size={13} className="text-red-600" />
+                  Delete Ticket
+                </button>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -153,15 +186,22 @@ function ActionMenu({
   )
 }
 
-export default function IncidentTable({ incidents, onStatusChange, onAssignAgency }: IncidentTableProps) {
+export default function IncidentTable({ incidents, onStatusChange, onAssignAgency, onDelete }: IncidentTableProps) {
+  const dispatch = useDispatch()
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
   const [modalTab, setModalTab] = useState<'details' | 'map'>('details')
   const [assignIncident, setAssignIncident] = useState<Incident | null>(null)
-  const [assignments, setAssignments] = useState<Record<string, string>>({})
 
-  const handleAssignConfirm = (incidentId: string, agency: ResponseAgency) => {
-    setAssignments((prev) => ({ ...prev, [incidentId]: agency.name }))
-    onStatusChange(incidentId, 'responding')
+  const handleAssignConfirm = async (incidentId: string, agency: ResponseAgency) => {
+    await assignAgencyToIncident(incidentId, agency.id, agency.name, agency.username || undefined)
+    const target = incidents.find((i) => i.id === incidentId)
+    dispatch(updateIncident({
+      ...(target || {}),
+      id: incidentId,
+      assigned_agency_id: agency.id,
+      assigned_agency_name: agency.name,
+      status: 'pending',
+    }))
     if (onAssignAgency) {
       onAssignAgency(incidentId, agency)
     }
@@ -191,9 +231,8 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
           </thead>
           <tbody className="divide-y divide-gray-100">
             {incidents.map((incident) => {
-              const matchedAgency = getCategoryMatchedAgencyName(incident.disaster_type)
-              const assignedName = assignments[incident.id] || (incident.status === 'responding' ? matchedAgency : null)
-              const isClosedOrRescued = incident.status === 'closed' || incident.status === 'rescued'
+              // Show assigned unit when name OR id is set (id may be UUID type in DB)
+              const assignedName = (incident.assigned_agency_name || null)
 
               return (
                 <tr key={incident.id} className="hover:bg-gray-50/60 transition-colors">
@@ -243,22 +282,31 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
                   {/* Assigned Agency */}
                   <td className="px-4 py-3.5 align-top max-w-[170px]">
                     {assignedName ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[10px] font-extrabold text-blue-800 border border-blue-200">
-                        <Building2 size={11} className="text-blue-600 shrink-0" />
-                        <span className="truncate">{assignedName}</span>
-                      </span>
-                    ) : isClosedOrRescued ? (
-                      <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
-                        <CheckCircle2 size={10} className="text-emerald-600" /> Operation Done
-                      </span>
-                    ) : (
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[10px] font-extrabold text-blue-800 border border-blue-200">
+                          <Building2 size={11} className="text-blue-600 shrink-0" />
+                          <span className="truncate">{assignedName}</span>
+                        </span>
+                        {incident.status !== 'closed' && (
+                          <button
+                            type="button"
+                            onClick={() => setAssignIncident(incident)}
+                            className="text-[9px] font-extrabold text-blue-600 hover:underline"
+                          >
+                            Change Agency
+                          </button>
+                        )}
+                      </div>
+                    ) : incident.status !== 'closed' ? (
                       <button
                         type="button"
                         onClick={() => setAssignIncident(incident)}
                         className="inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-600 hover:text-blue-800 bg-blue-50/50 hover:bg-blue-100 px-2 py-1 rounded transition-colors border border-blue-100"
                       >
-                        <Navigation size={10} /> Assign Unit
+                        <Building2 size={10} /> Assign Response Agency
                       </button>
+                    ) : (
+                      <span className="text-[11px] text-gray-400 font-semibold italic">Unassigned</span>
                     )}
                   </td>
 
@@ -309,11 +357,13 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
                   {/* Actions (Three Dots Menu) */}
                   <td className="px-4 py-3.5 align-top text-right">
                     <ActionMenu
+                      incidentId={incident.id}
                       currentStatus={incident.status}
                       onStatusChange={(newStatus) => onStatusChange(incident.id, newStatus)}
                       onViewDetails={() => openDetailsModal(incident, 'details')}
                       onViewMap={() => openDetailsModal(incident, 'map')}
                       onOpenAssignModal={() => setAssignIncident(incident)}
+                      onDelete={onDelete}
                     />
                   </td>
 
@@ -330,6 +380,7 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
         initialTab={modalTab}
         onClose={() => setSelectedIncident(null)}
         onStatusChange={onStatusChange}
+        onDelete={onDelete}
       />
 
       {/* Manual & AI Agency Assign Modal */}
