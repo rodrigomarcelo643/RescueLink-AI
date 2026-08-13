@@ -44,12 +44,8 @@ export function useMessengerTickets() {
       )
       .subscribe()
 
-    const onFocus = () => fetchConversations()
-    window.addEventListener('focus', onFocus)
-
     return () => {
       supabase.removeChannel(channel)
-      window.removeEventListener('focus', onFocus)
     }
   }, [])
 
