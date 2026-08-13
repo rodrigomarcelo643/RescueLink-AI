@@ -11,7 +11,7 @@ import type { RootState } from '@/redux/store'
 import type { Incident } from '@/types/incident'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Dashboard',
+  '/dashboard': 'Dashboard',
   '/incidents': 'Incidents',
   '/fb-monitor': 'Facebook Monitoring',
   '/donations': 'Donations',

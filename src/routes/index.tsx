@@ -22,6 +22,7 @@ import AgencyDashboard from '@/pages/agency/AgencyDashboard'
 import AgencyMap from '@/pages/agency/AgencyMap'
 import AgencyProfile from '@/pages/agency/AgencyProfile'
 
+import LandingPage from '@/pages/public/LandingPage'
 import PublicDashboard from '@/pages/public/PublicDashboard'
 import PublicReport from '@/pages/public/PublicReport'
 import TrackReport from '@/pages/public/TrackReport'
@@ -34,13 +35,25 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   if (loading) return <LoadingSpinner />
   if (user && role) {
     const landing: Partial<Record<string, string>> = {
-      lgu: '/',
+      lgu: '/dashboard',
       agency: '/agency-dashboard',
     }
     return <Navigate to={landing[role] ?? '/unauthorized'} replace />
   }
-  // user exists but rol  e not yet resolved — keep waiting
   if (user && !role) return <LoadingSpinner />
+  return <>{children}</>
+}
+
+function AuthRedirectLanding({ children }: { children: React.ReactNode }) {
+  const { user, role, loading } = useAuth()
+  if (loading) return <LoadingSpinner />
+  if (user && role) {
+    const landing: Partial<Record<string, string>> = {
+      lgu: '/dashboard',
+      agency: '/agency-dashboard',
+    }
+    return <Navigate to={landing[role] ?? '/unauthorized'} replace />
+  }
   return <>{children}</>
 }
 
@@ -49,41 +62,44 @@ export default function AppRouter() {
     <BrowserRouter>
       <ErrorBoundary>
         <Routes>
-        {/* Public routes — redirect to dashboard if already logged in */}
-        <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
-        <Route path="/signup" element={<AuthRedirect><Signup /></AuthRedirect>} />
-        <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
-        <Route path="/public" element={<PublicDashboard />} />
-        <Route path="/report" element={<PublicReport />} />
-        <Route path="/track/:id" element={<TrackReport />} />
-        <Route path="/register-agency" element={<AgencyRegistrationPage />} />
-        <Route path="/agency-registration" element={<AgencyRegistrationPage />} />
-        <Route path="/unauthorized" element={<Unauthorized />} />
-        <Route path="/messenger-test" element={<MessengerTest />} />
+          {/* Public Landing Page at / */}
+          <Route path="/" element={<AuthRedirectLanding><LandingPage /></AuthRedirectLanding>} />
 
-        {/* Protected LGU routes */}
-        <Route element={<ProtectedRoute allowedRoles={['lgu']} />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/incidents" element={<Incidents />} />
-          <Route path="/fb-monitor" element={<FbMonitor />} />
-          <Route path="/donations" element={<Donations />} />
-          <Route path="/volunteers" element={<Volunteers />} />
-          <Route path="/evacuation-centers" element={<EvacuationCenters />} />
-          <Route path="/response-agencies" element={<ResponseAgencies />} />
-          <Route path="/map" element={<MonitoringMap />} />
-          <Route path="/settings" element={<Settings />} />
-        </Route>
+          {/* Auth & Public routes */}
+          <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
+          <Route path="/signup" element={<AuthRedirect><Signup /></AuthRedirect>} />
+          <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
+          <Route path="/public" element={<PublicDashboard />} />
+          <Route path="/report" element={<PublicReport />} />
+          <Route path="/track/:id" element={<TrackReport />} />
+          <Route path="/register-agency" element={<AgencyRegistrationPage />} />
+          <Route path="/agency-registration" element={<AgencyRegistrationPage />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/messenger-test" element={<MessengerTest />} />
 
-        {/* Protected Response Agency Portal routes */}
-        <Route element={<ProtectedRoute allowedRoles={['agency']} />}>
-          <Route path="/agency-dashboard" element={<AgencyDashboard />} />
-          <Route path="/agency-map" element={<AgencyMap />} />
-          <Route path="/agency-profile" element={<AgencyProfile />} />
-        </Route>
+          {/* Protected LGU Command Center routes */}
+          <Route element={<ProtectedRoute allowedRoles={['lgu']} />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/incidents" element={<Incidents />} />
+            <Route path="/fb-monitor" element={<FbMonitor />} />
+            <Route path="/donations" element={<Donations />} />
+            <Route path="/volunteers" element={<Volunteers />} />
+            <Route path="/evacuation-centers" element={<EvacuationCenters />} />
+            <Route path="/response-agencies" element={<ResponseAgencies />} />
+            <Route path="/map" element={<MonitoringMap />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Protected Response Agency Portal routes */}
+          <Route element={<ProtectedRoute allowedRoles={['agency']} />}>
+            <Route path="/agency-dashboard" element={<AgencyDashboard />} />
+            <Route path="/agency-map" element={<AgencyMap />} />
+            <Route path="/agency-profile" element={<AgencyProfile />} />
+          </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </ErrorBoundary>
     </BrowserRouter>
   )

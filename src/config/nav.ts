@@ -14,7 +14,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   // ── LGU ──────────────────────────────────────────
-  { to: '/',           label: 'Dashboard',  icon: LayoutDashboard, roles: ['lgu'], group: 'Overview'    },
+  { to: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard, roles: ['lgu'], group: 'Overview'    },
   { to: '/incidents',   label: 'Incidents',        icon: AlertTriangle,  roles: ['lgu'], group: 'Operations'  },
   { to: '/fb-monitor',  label: 'FB Monitoring',    icon: MessageSquare,  roles: ['lgu'], group: 'Monitoring'  },
   { to: '/map',          label: 'Monitoring Map',   icon: Map,            roles: ['lgu'], group: 'Monitoring'  },
