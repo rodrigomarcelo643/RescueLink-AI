@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import Pagination from '@/components/shared/Pagination'
 import type { ResponseAgency, AgencyCategory, AgencyContact } from '@/types/responseAgency'
-import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock, Radio } from 'lucide-react'
+import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock, Radio, LocateFixed, MapPin } from 'lucide-react'
 
 type OperationalStatus = 'available' | 'busy' | 'offline'
 
@@ -43,7 +43,7 @@ const CATEGORY_COLOR: Record<AgencyCategory, string> = {
 const PER_PAGE = 10
 
 const empty = (): Omit<ResponseAgency, 'id' | 'created_at'> => ({
-  name: '', category: 'rescue', category_other_specify: '', contacts: [], email: null, address: null, is_active: true, username: '', password: '',
+  name: '', category: 'rescue', category_other_specify: '', contacts: [], email: null, address: null, is_active: true, username: '', password: '', latitude: null, longitude: null,
 })
 
 export default function ResponseAgencies() {
@@ -52,6 +52,7 @@ export default function ResponseAgencies() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ResponseAgency | null>(null)
   const [form, setForm] = useState(empty())
+  const [locatingStation, setLocatingStation] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
@@ -60,6 +61,23 @@ export default function ResponseAgencies() {
   const [durationMinutes, setDurationMinutes] = useState<number>(30)
   const [generatedUrl, setGeneratedUrl] = useState<string>('')
   const [copiedShareLink, setCopiedShareLink] = useState(false)
+
+  const handleLocateStation = () => {
+    if (!navigator.geolocation) return
+    setLocatingStation(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((f) => ({
+          ...f,
+          latitude: parseFloat(pos.coords.latitude.toFixed(6)),
+          longitude: parseFloat(pos.coords.longitude.toFixed(6)),
+        }))
+        setLocatingStation(false)
+      },
+      () => setLocatingStation(false),
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }
 
   const handleOpenShareModal = () => {
     const expiry = Date.now() + 30 * 60 * 1000 // default 30 mins
@@ -139,7 +157,7 @@ export default function ResponseAgencies() {
   const openEdit = (a: ResponseAgency) => {
     setEditing(a)
     setForm({ name: a.name, category: a.category, category_other_specify: a.category_other_specify || '', contacts: a.contacts ?? [],
-      email: a.email, address: a.address, is_active: a.is_active, username: a.username || '', password: a.password || '' })
+      email: a.email, address: a.address, is_active: a.is_active, username: a.username || '', password: a.password || '', latitude: a.latitude ?? null, longitude: a.longitude ?? null })
     setError(''); setOpen(true)
   }
 
@@ -305,7 +323,12 @@ export default function ResponseAgencies() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-xs text-gray-600 max-w-[180px] truncate">{a.address ?? '—'}</p>
+                      <p className="text-xs text-gray-700 font-medium max-w-[180px] truncate">{a.address ?? '—'}</p>
+                      {a.latitude != null && a.longitude != null && (
+                        <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-1 w-fit mt-0.5 font-bold">
+                          📍 {a.latitude.toFixed(4)}, {a.longitude.toFixed(4)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {a.username ? (
@@ -494,15 +517,59 @@ export default function ResponseAgencies() {
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Address</label>
-                <input
-                  className="w-full px-3 py-2 text-sm text-gray-900 outline-none"
-                  style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
-                  placeholder="Station address"
-                  value={form.address ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value || null }))}
-                />
+              {/* Station Location & GPS Coordinates */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Station Location & GPS Coordinates</p>
+                  <button
+                    type="button"
+                    onClick={handleLocateStation}
+                    disabled={locatingStation}
+                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 rounded transition-colors cursor-pointer"
+                  >
+                    <LocateFixed size={11} className={locatingStation ? 'animate-spin' : ''} />
+                    {locatingStation ? 'Locating…' : '📍 Auto GPS'}
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold text-gray-500 uppercase">Station Address</label>
+                  <input
+                    className="w-full px-3 py-2 text-sm text-gray-900 outline-none"
+                    style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
+                    placeholder="Katipunan St, Barangay Labangon, Cebu City"
+                    value={form.address ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, address: e.target.value || null }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Latitude (GPS)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="w-full px-3 py-2 text-xs font-mono text-gray-900 outline-none"
+                      style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
+                      placeholder="10.3015"
+                      value={form.latitude ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value ? parseFloat(e.target.value) : null }))}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Longitude (GPS)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="w-full px-3 py-2 text-xs font-mono text-gray-900 outline-none"
+                      style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
+                      placeholder="123.8821"
+                      value={form.longitude ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value ? parseFloat(e.target.value) : null }))}
+                    />
+                  </div>
+                </div>
               </div>
 
               <label className="flex cursor-pointer items-center gap-2">
