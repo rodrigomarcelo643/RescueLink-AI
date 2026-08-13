@@ -1,12 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { getIncidents, updateIncidentStatus, declineAgencyDispatch } from '@/services/incidents.service'
+import {
+  getIncidents,
+  updateIncidentStatus,
+  declineAgencyDispatch,
+  assignAgencyToIncident,
+} from '@/services/incidents.service'
+import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
+import { getResponseAgencies } from '@/services/responseAgencies.service'
 import { supabase } from '@/services/supabase'
 import type { Incident } from '@/types/incident'
 import {
   ShieldCheck, MapPin, CheckCircle,
   Clock, Navigation, RefreshCw, Eye, Sparkles, Filter, ChevronRight,
-  Check, X
+  Check, X, Zap, AlertTriangle, Radio, Building2
 } from 'lucide-react'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
@@ -26,65 +33,125 @@ const STATUS_BADGE: Record<Incident['status'], { label: string; bg: string; text
   closed:     { label: 'Ticket Closed',     bg: '#f3f4f6', text: '#4b5563' },
 }
 
+interface NearestAlertItem {
+  incident: Incident
+  matchResult: AgencyMatchResult
+}
+
 export default function AgencyDashboard() {
   const { agency } = useAuth()
   const [incidents, setIncidents] = useState<Incident[]>([])
+  const [nearestAlerts, setNearestAlerts] = useState<NearestAlertItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  const fetchAssignedIncidents = async () => {
-    setLoading(true)
+  const fetchAssignedIncidents = useCallback(async (isInitial = false) => {
+    if (isInitial && incidents.length === 0) setLoading(true)
     try {
       const all = await getIncidents()
+      // Sort incidents descending by created_at so newest data appears at the TOP (above)
+      all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setIncidents(all)
+
+      // Unblock UI spinner immediately so the dashboard renders without delay!
+      setLoading(false)
+
+      if (agency) {
+        const allAgencies = await getResponseAgencies()
+        const activeUnclosed = all.filter((i) => i.status !== 'closed')
+
+        const curId = (agency.id || '').toLowerCase().trim()
+        const curUsername = (agency.username || '').toLowerCase().trim()
+        const curEmail = (agency.email || '').toLowerCase().trim()
+        const curName = (agency.name || '').toLowerCase().trim()
+
+        // Run proximity calculations concurrently in parallel (Promise.all) for instant speed
+        const results = await Promise.all(
+          activeUnclosed.map(async (inc) => {
+            const res = await matchNearestAgency(inc, allAgencies)
+            return { inc, res }
+          })
+        )
+
+        const matchedItems: NearestAlertItem[] = []
+        for (const { inc, res } of results) {
+          const targetId = (res.agency.id || '').toLowerCase().trim()
+          const targetUsername = (res.agency.username || '').toLowerCase().trim()
+          const targetEmail = (res.agency.email || '').toLowerCase().trim()
+          const targetName = (res.agency.name || '').toLowerCase().trim()
+
+          const isMatched =
+            (curId && targetId && curId === targetId) ||
+            (curUsername && targetUsername && curUsername === targetUsername) ||
+            (curEmail && targetEmail && curEmail === targetEmail) ||
+            (curName && targetName && (curName.includes(targetName) || targetName.includes(curName)))
+
+          if (isMatched) {
+            matchedItems.push({
+              incident: inc,
+              matchResult: res,
+            })
+          }
+        }
+
+        // Sort nearest alerts newest FIRST (above)
+        matchedItems.sort((a, b) => new Date(b.incident.created_at).getTime() - new Date(a.incident.created_at).getTime())
+        setNearestAlerts(matchedItems)
+      }
     } catch (e) {
-      console.error(e)
+      console.error('AgencyDashboard fetch error:', e)
     } finally {
       setLoading(false)
     }
-  }
+  }, [agency?.id])
 
   useEffect(() => {
-    fetchAssignedIncidents()
+    fetchAssignedIncidents(true)
 
-    // Supabase Realtime — re-fetch from DB on any rescue_tickets change
+    // Supabase Realtime — silent background re-fetch on any rescue_tickets change
     const channel = supabase
-      .channel(`agency_dashboard_${agency?.id || 'all'}`)
+      .channel(`agency_dashboard_tickets_realtime`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rescue_tickets' },
-        () => { fetchAssignedIncidents() }
+        () => { fetchAssignedIncidents(false) }
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [agency?.id])
+  }, [agency?.id, fetchAssignedIncidents])
 
   const agencyCat = agency?.category?.toLowerCase() || ''
 
-  // Pure DB field matching — no localStorage fallbacks
+  // Pure DB field matching + AI Nearest Station recommended matching
   const assignedIncidents = incidents.filter((inc) => {
     if (!agency) return false
-    if (!inc.assigned_agency_id && !inc.assigned_agency_name) return false
 
+    // 1. Explicit DB assignment match
     const currentId = agency.id?.toLowerCase().trim() ?? ''
     const currentUsername = (agency.username || '').toLowerCase().trim()
+    const currentEmail = (agency.email || '').toLowerCase().trim()
     const currentName = (agency.name || '').toLowerCase().trim()
 
-    // Match by ID
     const targetId = (inc.assigned_agency_id || '').toLowerCase().trim()
-    if (targetId && (targetId === currentId || (currentUsername && targetId === currentUsername))) return true
+    if (targetId && (targetId === currentId || (currentUsername && targetId === currentUsername) || (currentEmail && targetId === currentEmail))) return true
 
-    // Match by name
     const targetName = (inc.assigned_agency_name || '').toLowerCase().trim()
-    if (!targetName) return false
-    if (targetName === currentName || currentName.includes(targetName) || targetName.includes(currentName)) return true
-    if (currentUsername && (targetName.includes(currentUsername) || currentUsername.includes(targetName))) return true
+    if (targetName && (targetName === currentName || currentName.includes(targetName) || targetName.includes(currentName))) return true
+    if (currentUsername && targetName && (targetName.includes(currentUsername) || currentUsername.includes(targetName))) return true
+    if (currentEmail && targetName && (targetName.includes(currentEmail) || currentEmail.includes(targetName))) return true
+
+    // 2. AI Nearest Station Recommendation Match
+    const isNearestMatch = nearestAlerts.some((n) => n.incident.id === inc.id)
+    if (isNearestMatch) return true
 
     return false
   })
+
+  // Ensure assigned incidents are sorted newest FIRST (above)
+  assignedIncidents.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   const filtered = filterStatus === 'all'
     ? assignedIncidents
@@ -97,12 +164,54 @@ export default function AgencyDashboard() {
   const handleUpdateStatus = async (id: string, newStatus: Incident['status']) => {
     setUpdatingId(id)
     try {
-      await updateIncidentStatus(id, newStatus)
+      if (agency && (newStatus === 'responding' || newStatus === 'pending')) {
+        // Automatically persist assigned_agency_id, assigned_agency_name, and status in DB
+        await assignAgencyToIncident(
+          id,
+          agency.id,
+          agency.name,
+          agency.username || undefined,
+          newStatus
+        )
+      } else {
+        await updateIncidentStatus(id, newStatus)
+      }
+
       setIncidents((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status: newStatus,
+                assigned_agency_id: agency?.id || item.assigned_agency_id,
+                assigned_agency_name: agency?.name || item.assigned_agency_name,
+                assigned_responder_id: agency?.id || item.assigned_responder_id,
+              }
+            : item
+        )
       )
     } catch (err) {
       console.error(err)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const handleImmediateAction = async (incidentId: string) => {
+    if (!agency) return
+    setUpdatingId(incidentId)
+    try {
+      // Assign ticket to current agency AND set status to responding in Supabase DB
+      await assignAgencyToIncident(
+        incidentId,
+        agency.id,
+        agency.name,
+        agency.username || undefined,
+        'responding'
+      )
+      await fetchAssignedIncidents()
+    } catch (err) {
+      console.error('Immediate action error:', err)
     } finally {
       setUpdatingId(null)
     }
@@ -113,6 +222,7 @@ export default function AgencyDashboard() {
     try {
       await declineAgencyDispatch(id)
       setIncidents((prev) => prev.filter((item) => item.id !== id))
+      setNearestAlerts((prev) => prev.filter((n) => n.incident.id !== id))
     } catch (err) {
       console.error(err)
     } finally {
@@ -123,7 +233,7 @@ export default function AgencyDashboard() {
   if (loading) return <LoadingSpinner />
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 font-sans">
 
       {/* Top Welcome Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-gradient-to-r from-gray-900 via-slate-900 to-red-950 text-white rounded-xl shadow-lg border border-gray-800">
@@ -147,11 +257,109 @@ export default function AgencyDashboard() {
 
         <button
           onClick={fetchAssignedIncidents}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-200 bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-all"
+          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-gray-200 bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-all cursor-pointer"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh Dispatches
         </button>
       </div>
+
+      {/* AI Nearest Station Emergency Alert Notification Banner */}
+      {nearestAlerts.length > 0 && (
+        <div className="relative overflow-hidden rounded-xl border-2 border-red-600 bg-gradient-to-r from-red-950 via-slate-900 to-red-900 p-5 text-white shadow-xl flex flex-col gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-2 border-b border-red-800/60 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex size-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full size-3 bg-red-500"></span>
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-red-300">
+                <Sparkles size={14} className="text-yellow-400 animate-pulse" /> AI Nearest Station Alert ({nearestAlerts.length})
+              </span>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-300 bg-red-900/90 px-3 py-1 rounded-full border border-red-600/80 shadow-xs">
+              ⚡ Immediate Action Recommended
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {nearestAlerts.map(({ incident: inc, matchResult }) => {
+              const isUpdating = updatingId === inc.id
+              const isResponding = inc.status === 'responding'
+
+              return (
+                <div
+                  key={inc.id}
+                  className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-black/50 rounded-lg border border-red-700/50 hover:border-red-500/80 transition-all"
+                >
+                  <div className="flex flex-col gap-1.5 max-w-xl">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 text-[10px] font-black uppercase rounded bg-red-600 text-white shadow-2xs">
+                        {inc.severity} Priority
+                      </span>
+                      <h3 className="text-sm font-extrabold text-white capitalize">
+                        {inc.disaster_type} Incident Report
+                      </h3>
+                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1 bg-amber-950/70 px-2 py-0.5 rounded border border-amber-800/60">
+                        <Navigation size={12} /> {matchResult.distanceKm} km away (~{matchResult.estimatedTimeMin} mins ETA)
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-gray-200 flex items-center gap-1.5 font-semibold">
+                      <MapPin size={13} className="text-red-400 shrink-0" />
+                      <span>{inc.location_text}</span>
+                    </p>
+
+                    <div className="text-[11px] text-red-200 bg-red-950/70 p-2.5 rounded border border-red-900/60 flex items-start gap-1.5 leading-relaxed">
+                      <Sparkles size={12} className="text-yellow-400 shrink-0 mt-0.5" />
+                      <span><strong>AI Match:</strong> You are identified as the nearest specialized response station. {matchResult.aiReason}</span>
+                    </div>
+                  </div>
+
+                  {/* Immediate Action Buttons */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!isResponding && inc.status !== 'rescued' && inc.status !== 'closed' && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={() => handleImmediateAction(inc.id)}
+                          className="px-4 py-2 text-xs font-black text-white bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-500 hover:to-green-500 rounded-lg shadow-lg border border-emerald-400/40 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                        >
+                          <Zap size={14} className="fill-yellow-300 text-yellow-300 animate-pulse" />
+                          {isUpdating ? 'Dispatching…' : 'Accept & Respond 🟢'}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={() => handleDeclineDispatch(inc.id)}
+                          className="px-3 py-2 text-xs font-bold text-red-300 hover:text-red-100 bg-red-950/70 hover:bg-red-900/90 border border-red-800/60 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <X size={13} /> {isUpdating ? 'Declining…' : 'Decline 🔴'}
+                        </button>
+                      </div>
+                    )}
+
+                    {isResponding && (
+                      <span className="px-3 py-1.5 text-xs font-black uppercase text-emerald-400 bg-emerald-950/80 rounded border border-emerald-700/60 flex items-center gap-1">
+                        <CheckCircle size={13} /> Unit Active En Route
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIncident(inc)}
+                      className="px-3 py-2 text-xs font-bold text-gray-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Eye size={13} /> Details
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -194,7 +402,7 @@ export default function AgencyDashboard() {
             <button
               key={st}
               onClick={() => setFilterStatus(st)}
-              className={`px-3 py-1 rounded text-xs font-extrabold capitalize transition-all ${
+              className={`px-3 py-1 rounded text-xs font-extrabold capitalize transition-all cursor-pointer ${
                 filterStatus === st
                   ? 'bg-red-700 text-white shadow-xs'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -219,6 +427,7 @@ export default function AgencyDashboard() {
             const sevStyle = SEVERITY_COLOR[inc.severity] ?? SEVERITY_COLOR.medium
             const stBadge = STATUS_BADGE[inc.status] ?? STATUS_BADGE.pending
             const isUpdating = updatingId === inc.id
+            const nearestMatch = nearestAlerts.find((n) => n.incident.id === inc.id)?.matchResult
 
             return (
               <div
@@ -253,6 +462,18 @@ export default function AgencyDashboard() {
                     </span>
                   </div>
                 </div>
+
+                {/* AI Nearest Station Badge */}
+                {nearestMatch && (
+                  <div className="px-3 py-1.5 bg-gradient-to-r from-red-50 via-amber-50 to-orange-50 border border-red-200 rounded-md flex items-center justify-between text-xs font-bold text-red-900 flex-wrap gap-2">
+                    <span className="flex items-center gap-1.5 text-red-800">
+                      <Sparkles size={13} className="text-yellow-600" /> <strong>AI Recommends You:</strong> Nearest Station ({nearestMatch.distanceKm} km away)
+                    </span>
+                    <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200 font-semibold">
+                      ETA ~{nearestMatch.estimatedTimeMin} mins
+                    </span>
+                  </div>
+                )}
 
                 {/* Location & AI Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
@@ -291,32 +512,34 @@ export default function AgencyDashboard() {
                   <button
                     type="button"
                     onClick={() => setSelectedIncident(inc)}
-                    className="flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900"
+                    className="flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 cursor-pointer"
                   >
                     <Eye size={13} /> View Full Details & Map <ChevronRight size={13} />
                   </button>
 
                   <div className="flex items-center gap-2">
-                    {inc.status === 'pending' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleUpdateStatus(inc.id, 'responding')}
-                          className="px-3 py-1.5 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded transition-colors flex items-center gap-1 shadow-xs"
-                        >
-                          <Check size={13} /> {isUpdating ? 'Accepting…' : 'Accept Dispatch 🟢'}
-                        </button>
+                    {/* Immediate Action / Accept Button */}
+                    {(inc.status === 'pending' || nearestMatch) && inc.status !== 'responding' && inc.status !== 'rescued' && inc.status !== 'closed' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleImmediateAction(inc.id)}
+                        className="px-3.5 py-1.5 text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 rounded shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <Zap size={13} className="fill-yellow-300 text-yellow-300" />
+                        {isUpdating ? 'Dispatching…' : 'Respond Immediately 🟢'}
+                      </button>
+                    )}
 
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleDeclineDispatch(inc.id)}
-                          className="px-3 py-1.5 text-xs font-extrabold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded transition-colors flex items-center gap-1"
-                        >
-                          <X size={13} /> {isUpdating ? 'Declining…' : 'Decline Dispatch 🔴'}
-                        </button>
-                      </div>
+                    {inc.status === 'pending' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleDeclineDispatch(inc.id)}
+                        className="px-3 py-1.5 text-xs font-extrabold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <X size={13} /> {isUpdating ? 'Declining…' : 'Decline Dispatch 🔴'}
+                      </button>
                     )}
 
                     {inc.status === 'responding' && (
@@ -324,7 +547,7 @@ export default function AgencyDashboard() {
                         type="button"
                         disabled={isUpdating}
                         onClick={() => handleUpdateStatus(inc.id, 'rescued')}
-                        className="px-3 py-1.5 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded transition-colors"
+                        className="px-3.5 py-1.5 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded transition-colors cursor-pointer"
                       >
                         {isUpdating ? 'Updating…' : 'Mark as Rescued / On Scene 🛟'}
                       </button>
@@ -335,7 +558,7 @@ export default function AgencyDashboard() {
                         type="button"
                         disabled={isUpdating}
                         onClick={() => handleUpdateStatus(inc.id, 'closed')}
-                        className="px-3 py-1.5 text-xs font-extrabold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+                        className="px-3.5 py-1.5 text-xs font-extrabold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded transition-colors cursor-pointer"
                       >
                         {isUpdating ? 'Updating…' : 'Close Ticket ✓'}
                       </button>
@@ -357,6 +580,7 @@ export default function AgencyDashboard() {
           onStatusChange={(id, st) => {
             handleUpdateStatus(id, st)
           }}
+          isLGU={false}
         />
       )}
 
