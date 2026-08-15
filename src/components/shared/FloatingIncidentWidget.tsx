@@ -42,6 +42,14 @@ export default function FloatingIncidentWidget() {
     }
   }, [])
 
+  const handlePopDesktopWindow = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const appUrl = `${window.location.origin}/happenings?mode=widget`
+    const windowFeatures = 'width=440,height=750,left=150,top=80,resizable=yes,scrollbars=yes,status=no,location=no'
+    const popWin = window.open(appUrl, 'RescueLinkDesktopWidget', windowFeatures)
+    if (popWin) popWin.focus()
+  }
+
   if (isWidgetModeWindow) return null
 
   const activeCount = incidents.length
@@ -109,6 +117,14 @@ export default function FloatingIncidentWidget() {
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePopDesktopWindow}
+                  className="p-1 text-amber-300 hover:text-white rounded hover:bg-purple-900/50 transition-colors"
+                  title="Pop Standalone Desktop Widget Window 💻"
+                >
+                  <ExternalLink size={13} />
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsMinimized((prev) => !prev)}

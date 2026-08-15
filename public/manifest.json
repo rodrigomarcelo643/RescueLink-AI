@@ -32,7 +32,7 @@
   "background_color": "#0f172a",
   "theme_color": "#581c87",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui", "browser"],
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
   "orientation": "any",
   "scope": "/",
   "description": "Real-time disaster risk telemetry and live incident feed app.",
