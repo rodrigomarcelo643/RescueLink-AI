@@ -5,6 +5,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import HappeningDetailModal from '@/components/incidents/HappeningDetailModal'
 import PWAInstallWidgetModal from '@/components/shared/PWAInstallWidgetModal'
+import { requestDeviceNotificationPermission, initLiveProximityPushListener } from '@/services/deviceNotificationService'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import type { Donation } from '@/types/donation'
 import type { Incident } from '@/types/incident'
@@ -44,6 +45,9 @@ export default function PublicDashboard() {
   const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
+    initLiveProximityPushListener()
+    requestDeviceNotificationPermission()
+
     Promise.all([
       supabase.from('rescue_tickets').select('*').in('status', ['pending', 'responding']),
       supabase.from('donations').select('*').eq('status', 'confirmed'),

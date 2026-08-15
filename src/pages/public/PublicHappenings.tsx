@@ -92,9 +92,10 @@ export default function PublicHappenings() {
     fetchAllData(selectedCoords, type === 'all' ? undefined : type)
   }
 
-  // Auto-detect user's current location on mount to center map & calculate local risk
+  // Auto-detect user's current location on mount & auto-request push notifications
   useEffect(() => {
     initLiveProximityPushListener()
+    requestDeviceNotificationPermission()
 
     if (navigator.geolocation) {
       setLocating(true)
