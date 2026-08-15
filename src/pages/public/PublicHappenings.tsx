@@ -18,7 +18,6 @@ import mainLogo from '@/assets/logo/main_logo.jpg'
 import {
   requestDeviceNotificationPermission,
   sendSampleDeviceNotification,
-  checkAndSendProximityNotification,
   saveUserGPSCoordinates,
   initLiveProximityPushListener,
 } from '@/services/deviceNotificationService'
