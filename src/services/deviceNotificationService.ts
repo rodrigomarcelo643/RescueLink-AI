@@ -61,7 +61,7 @@ export async function subscribeDeviceToWebPush() {
 
   try {
     const reg = await navigator.serviceWorker.ready
-    let sub = await reg.pushManager.getSubscription()
+    const sub = await reg.pushManager.getSubscription()
     const coords = getSavedUserGPSCoordinates()
 
     if (sub) {
@@ -94,19 +94,29 @@ export function isNotificationPermissionGranted(): boolean {
 }
 
 /**
- * Triggers native Android/Desktop Notification via Service Worker Registration or Window Notification
+ * Triggers native Android/Desktop Notification via Window Notification & Service Worker Registration simultaneously
  */
 async function dispatchNativeOSNotification(title: string, options: NotificationOptions & { url?: string }): Promise<boolean> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
 
-  // 1. Try Service Worker showNotification (Required for Android & PWA background alerts)
+  let dispatched = false
+
+  // 1. Direct Window Notification (Instant banner popup on Desktop & Active Chrome Tabs)
+  try {
+    new Notification(title, {
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      ...options,
+    })
+    dispatched = true
+  } catch (winErr) {
+    console.warn('Window notification dispatch notice:', winErr)
+  }
+
+  // 2. Service Worker showNotification (Android Status Bar & PWA background alerts)
   if ('serviceWorker' in navigator) {
     try {
-      const reg = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
-      ])
-
+      const reg = await navigator.serviceWorker.ready
       if (reg && reg.showNotification) {
         await reg.showNotification(title, {
           icon: '/icon-192.png',
@@ -115,25 +125,14 @@ async function dispatchNativeOSNotification(title: string, options: Notification
           data: { url: options.url || '/happenings' },
           ...options,
         } as any)
-        return true
+        dispatched = true
       }
     } catch (swErr) {
-      console.warn('Service Worker notification failed, falling back to window Notification:', swErr)
+      console.warn('Service Worker showNotification notice:', swErr)
     }
   }
 
-  // 2. Fallback to Window Notification API
-  try {
-    new Notification(title, {
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      ...options,
-    })
-    return true
-  } catch (winErr) {
-    console.warn('Window notification dispatch error:', winErr)
-    return false
-  }
+  return dispatched
 }
 
 /**
@@ -142,7 +141,7 @@ async function dispatchNativeOSNotification(title: string, options: Notification
 export async function checkAndSendProximityNotification(
   incident: any,
   userCoords: { lat: number; lng: number } | null = null,
-  maxRadiusKm: number = 100,
+  maxRadiusKm: number = 10000,
   forceShow: boolean = false
 ): Promise<boolean> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
@@ -202,7 +201,7 @@ let liveSubscriptionChannel: any = null
 let pollingIntervalRef: any = null
 
 /**
- * High-frequency polling backup engine (runs every 6s) to ensure newly inserted emergency reports trigger notifications
+ * High-frequency polling backup engine (runs every 4s) to ensure newly inserted emergency reports trigger notifications
  */
 function startLivePollingFallback() {
   if (pollingIntervalRef) return
@@ -221,13 +220,13 @@ function startLivePollingFallback() {
       if (data && data.length > 0) {
         const userCoords = getSavedUserGPSCoordinates()
         for (const inc of data as Incident[]) {
-          await checkAndSendProximityNotification(inc, userCoords, 100)
+          await checkAndSendProximityNotification(inc, userCoords, 10000)
         }
       }
     } catch (e) {
       console.warn('Polling notification check error:', e)
     }
-  }, 6000)
+  }, 4000)
 }
 
 /**
@@ -239,14 +238,14 @@ export function initLiveProximityPushListener() {
   if (liveSubscriptionChannel) return
 
   liveSubscriptionChannel = supabase
-    .channel('public_live_proximity_alerts_v2')
+    .channel('public_live_proximity_alerts_v3')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'rescue_tickets' },
       (payload) => {
         const newIncident = (payload.new || payload.old) as Incident
         if (newIncident) {
-          checkAndSendProximityNotification(newIncident, null, 100, true)
+          checkAndSendProximityNotification(newIncident, null, 10000, true)
         }
       }
     )
