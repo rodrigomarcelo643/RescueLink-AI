@@ -90,10 +90,13 @@ function GlobalPWAInitializer() {
   return null
 }
 
+import FloatingIncidentWidget from '@/components/shared/FloatingIncidentWidget'
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <GlobalPWAInitializer />
+      <FloatingIncidentWidget />
       <ErrorBoundary>
         <Routes>
           {/* Public Landing Page at / */}
