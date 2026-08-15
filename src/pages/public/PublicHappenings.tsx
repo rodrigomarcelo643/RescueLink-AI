@@ -57,6 +57,7 @@ export default function PublicHappenings() {
       const { data } = await supabase
         .from('rescue_tickets')
         .select('*')
+        .in('status', ['pending', 'responding'])
         .order('created_at', { ascending: false })
 
       const incData: Incident[] = (data as Incident[]) || []
