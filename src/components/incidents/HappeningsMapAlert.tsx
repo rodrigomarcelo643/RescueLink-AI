@@ -29,7 +29,7 @@ function MapPanController({ selectedLocation }: { selectedLocation: { lat: numbe
     if (map && selectedLocation) {
       map.panTo(selectedLocation)
     }
-  }, [map, selectedLocation])
+  }, [map, selectedLocation?.lat, selectedLocation?.lng])
   return null
 }
 
@@ -44,7 +44,9 @@ function MapEventReceiver({ onSelectCoordinates }: { onSelectCoordinates: (lat: 
       }
     })
     return () => {
-      google.maps.event.removeListener(listener)
+      if (google?.maps?.event) {
+        google.maps.event.removeListener(listener)
+      }
     }
   }, [map, onSelectCoordinates])
 
@@ -65,18 +67,18 @@ export default function HappeningsMapAlert({
   const mapAlert = prediction?.mapAlert
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-900" style={{ height: 480 }}>
+    <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-900 touch-auto" style={{ height: 480 }}>
       {/* Top Floating Map Alert Banner */}
       {mapAlert && mapAlert.active && (
         <div className="absolute top-3 left-3 right-3 z-10 bg-red-900/90 text-white p-3 rounded-lg border border-red-500 backdrop-blur-md shadow-md flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex size-3 shrink-0">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <span className="relative flex size-3 shrink-0 mt-0.5 sm:mt-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full size-3 bg-red-500"></span>
             </span>
             <div>
               <p className="text-xs font-black tracking-wide uppercase text-red-200 flex items-center gap-1.5">
-                <AlertTriangle size={14} className="text-red-400" />
+                <AlertTriangle size={14} className="text-red-400 shrink-0" />
                 {mapAlert.title}
               </p>
               <p className="text-[11px] font-semibold text-red-100 mt-0.5 line-clamp-1">
@@ -91,19 +93,22 @@ export default function HappeningsMapAlert({
       )}
 
       {/* Map Control Helper Hint */}
-      <div className="absolute bottom-3 left-3 z-10 bg-white/90 text-gray-800 text-[11px] font-bold px-3 py-1.5 rounded-md border border-gray-200 backdrop-blur-xs shadow-xs flex items-center gap-1.5">
-        <MapPin size={12} className="text-red-600" />
-        Click anywhere on map to predict risk & nearest accidents
+      <div className="absolute bottom-3 left-3 z-10 bg-white/90 text-gray-800 text-[11px] font-bold px-3 py-1.5 rounded-md border border-gray-200 backdrop-blur-xs shadow-xs flex items-center gap-1.5 max-w-[85%] sm:max-w-none">
+        <MapPin size={12} className="text-red-600 shrink-0" />
+        <span className="truncate">Drag / pinch to zoom map • Click spot for risk prediction</span>
       </div>
 
       <APIProvider apiKey={API_KEY}>
         <Map
           defaultCenter={selectedLocation}
-          center={selectedLocation}
           defaultZoom={13}
           mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'rescuelink-map'}
           style={{ width: '100%', height: '100%' }}
           gestureHandling="greedy"
+          zoomControl={true}
+          fullscreenControl={false}
+          streetViewControl={false}
+          disableDefaultUI={false}
         >
           <MapPanController selectedLocation={selectedLocation} />
           <MapEventReceiver onSelectCoordinates={onSelectCoordinates} />
