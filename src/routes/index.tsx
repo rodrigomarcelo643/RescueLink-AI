@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
@@ -58,9 +59,41 @@ function AuthRedirectLanding({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+import {
+  requestDeviceNotificationPermission,
+  saveUserGPSCoordinates,
+  initLiveProximityPushListener,
+} from '@/services/deviceNotificationService'
+
+function GlobalPWAInitializer() {
+  useEffect(() => {
+    // 1. Instantly request Notification permissions
+    requestDeviceNotificationPermission()
+
+    // 2. Instantly request Geolocation permission & save user GPS coordinates
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          saveUserGPSCoordinates(pos.coords.latitude, pos.coords.longitude)
+        },
+        (err) => {
+          console.warn('Geolocation permission error:', err)
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
+
+    // 3. Initialize live background push listener
+    initLiveProximityPushListener()
+  }, [])
+
+  return null
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      <GlobalPWAInitializer />
       <ErrorBoundary>
         <Routes>
           {/* Public Landing Page at / */}
