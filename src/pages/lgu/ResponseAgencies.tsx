@@ -7,6 +7,7 @@ import { supabase } from '@/services/supabase'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import Pagination from '@/components/shared/Pagination'
+import { useModal } from '@/context/ModalContext'
 import type { ResponseAgency, AgencyCategory, AgencyContact } from '@/types/responseAgency'
 import { ShieldCheck, Plus, X, Pencil, Trash2, CheckCircle, XCircle, Phone, Share2, ExternalLink, User, Lock, Radio, LocateFixed } from 'lucide-react'
 
@@ -121,8 +122,9 @@ export default function ResponseAgencies() {
 
   // Realtime listener — update operational_status live when agency switches status
   useEffect(() => {
+    const channelName = `lgu_agencies_status_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
-      .channel('lgu_response_agencies_status')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'response_agencies' },
@@ -136,7 +138,11 @@ export default function ResponseAgencies() {
         }
       )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
+    }
   }, [])
 
   const filtered = filterCat === 'all' ? items : items.filter((a) => a.category === filterCat)
@@ -185,10 +191,21 @@ export default function ResponseAgencies() {
     } finally { setSaving(false) }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this agency?')) return
-    await deleteResponseAgency(id)
-    refresh()
+  const { openModal } = useModal()
+
+  const handleDelete = (id: string, agencyName?: string) => {
+    openModal({
+      title: 'Delete Response Agency Station',
+      description: `Are you sure you want to delete ${agencyName ? `"${agencyName}"` : 'this response agency station'}? This action will remove the station from active dispatch routing.`,
+      icon: <Trash2 size={20} className="text-red-600" />,
+      confirmLabel: 'Delete Station',
+      cancelLabel: 'Cancel',
+      danger: true,
+      onConfirm: async () => {
+        await deleteResponseAgency(id)
+        refresh()
+      },
+    })
   }
 
   if (loading) return <LoadingSpinner />
@@ -367,7 +384,7 @@ export default function ResponseAgencies() {
                         <button onClick={() => openEdit(a)} className="text-gray-400 hover:text-gray-700">
                           <Pencil size={13} />
                         </button>
-                        <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-600">
+                        <button onClick={() => handleDelete(a.id, a.name)} className="text-gray-400 hover:text-red-600 cursor-pointer">
                           <Trash2 size={13} />
                         </button>
                       </div>

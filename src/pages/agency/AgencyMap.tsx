@@ -25,8 +25,9 @@ export default function AgencyMap() {
   useEffect(() => {
     fetchIncidents()
 
+    const channelName = `agency_map_${agency?.id || 'all'}_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
-      .channel(`agency_map_${agency?.id || 'all'}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rescue_tickets' },
@@ -34,7 +35,11 @@ export default function AgencyMap() {
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
+    }
   }, [agency?.id])
 
   const activeAssignedIncidents = incidents.filter((inc) => {

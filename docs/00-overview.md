@@ -18,6 +18,9 @@ An AI-Powered Disaster Response, Relief Coordination, and Public Information Pla
 | [10-notifications.md](./10-notifications.md) | SMS (Semaphore), Email (Resend), Messenger/Telegram/WhatsApp push |
 | [11-facebook-page-automation.md](./11-facebook-page-automation.md) | Auto-post verified advisories to FB Page |
 | [12-deployment.md](./12-deployment.md) | Vercel, Supabase prod, GitHub Actions CI/CD, checklist |
+| [13-pitch-strategy.md](./13-pitch-strategy.md) | Pitch positioning, judge Q&A defense, core AI engines, value proposition |
+| [14-weather-pagasa-integration.md](./14-weather-pagasa-integration.md) | Weather APIs, PAGASA TCWS Signals, DOST water sensors, AI hazard scoring |
+| [15-pwa-phone-widget.md](./15-pwa-phone-widget.md) | Mobile PWA, standalone app window, home screen widget, offline service worker |
 
 ---
 

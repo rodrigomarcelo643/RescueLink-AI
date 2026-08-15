@@ -54,29 +54,55 @@ function ActionMenu({
   onDelete?: (id: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const { openModal } = useModal()
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setCoords({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+    }
+    setOpen((prev) => !prev)
+  }
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
         setOpen(false)
       }
     }
+    const handleScroll = () => setOpen(false)
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    window.addEventListener('scroll', handleScroll, { capture: true })
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('scroll', handleScroll, { capture: true })
+    }
+  }, [open])
 
   const isClosedOrRescued = currentStatus === 'closed' || currentStatus === 'rescued'
   const statuses: Incident['status'][] = ['pending', 'responding', 'rescued', 'closed']
   const available = statuses.filter((s) => s !== currentStatus)
 
   return (
-    <div className="relative inline-block text-left" ref={menuRef}>
+    <div className="relative inline-block text-left">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+        onClick={handleToggle}
+        className="flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
         aria-label="Actions"
         title="More options"
       >
@@ -86,11 +112,18 @@ function ActionMenu({
       <AnimatePresence>
         {open && (
           <motion.div
+            ref={menuRef}
             initial={{ opacity: 0, scale: 0.95, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 z-40 mt-1 w-48 origin-top-right rounded-md bg-white p-1 shadow-xl border border-gray-200"
+            transition={{ duration: 0.12 }}
+            style={{
+              position: 'fixed',
+              top: coords.top,
+              right: coords.right,
+              zIndex: 9999,
+            }}
+            className="w-52 origin-top-right rounded-xl bg-white p-1.5 shadow-2xl border border-gray-200 text-gray-900"
           >
             {/* View Full Details Option */}
             <button
@@ -99,7 +132,7 @@ function ActionMenu({
                 onViewDetails()
                 setOpen(false)
               }}
-              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-100 rounded transition-colors flex items-center gap-2"
+              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Eye size={13} className="text-gray-500" />
               View Full Details
@@ -112,7 +145,7 @@ function ActionMenu({
                 onViewMap()
                 setOpen(false)
               }}
-              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded transition-colors flex items-center gap-2"
+              className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Map size={13} className="text-emerald-600" />
               Live Track Map
@@ -126,10 +159,10 @@ function ActionMenu({
                   onOpenAssignModal()
                   setOpen(false)
                 }}
-                className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-2"
+                className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <Navigation size={13} className="text-blue-600" />
-                {currentStatus === 'rescued' ? 'Assign/Change Agency' : 'Assign Response Agency'}
+                {currentStatus === 'rescued' ? 'Assign/Change Agency' : 'Assign Agency (AI Route)'}
               </button>
             )}
 
@@ -147,7 +180,7 @@ function ActionMenu({
                       onStatusChange(status)
                       setOpen(false)
                     }}
-                    className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-semibold capitalize text-gray-700 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors cursor-pointer"
                   >
                     {STATUS_ACTION_LABELS[status]}
                   </button>
@@ -174,7 +207,7 @@ function ActionMenu({
                     })
                     setOpen(false)
                   }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-2"
+                  className="w-full text-left px-2.5 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <Trash2 size={13} className="text-red-600" />
                   Delete Ticket

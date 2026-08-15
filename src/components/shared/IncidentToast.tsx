@@ -196,7 +196,7 @@ function SingleToastCard({ toast, onDismiss, onSelectIncident }: SingleToastCard
             }`}
           >
             <Send size={11} />
-            {dispatched ? '✓ Agency Assigned — Pending Acceptance' : 'Assign Response Agency'}
+            {dispatched ? '✓ AI Alerted Station — Pending Acceptance' : 'Assign Response Agency'}
           </button>
         </div>
       )}

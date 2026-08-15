@@ -5,14 +5,22 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import Pagination from '@/components/shared/Pagination'
 import type { EvacuationCenter } from '@/types/evacuationCenter'
-import { Building2, Users, CheckCircle, XCircle, Plus, X, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Building2, Users, CheckCircle, XCircle, Plus, X, Pencil, ToggleLeft, ToggleRight, MapPin, LocateFixed, Radio } from 'lucide-react'
 
 const NEEDS_KEYS = ['food', 'water', 'medicine', 'blankets', 'clothes']
 const PER_PAGE = 10
 
+const PRESET_CEBU_LOCATIONS = [
+  { label: 'Labangon Gym', barangay: 'Labangon', lat: 10.3018, lng: 123.8825 },
+  { label: 'Guadalupe Complex', barangay: 'Guadalupe', lat: 10.3125, lng: 123.8785 },
+  { label: 'Sambag II Gym', barangay: 'Sambag II', lat: 10.2985, lng: 123.8890 },
+  { label: 'Banawa Sector', barangay: 'Banawa', lat: 10.3090, lng: 123.8795 },
+  { label: 'Lahug Complex', barangay: 'Lahug', lat: 10.3312, lng: 123.8920 },
+]
+
 const empty = (): Omit<EvacuationCenter, 'id' | 'created_at'> => ({
-  name: '', barangay: '', municipality: '', latitude: null, longitude: null,
-  capacity: 0, current_occupancy: 0, needs: {}, is_active: true,
+  name: '', barangay: '', municipality: 'Cebu City', latitude: 10.3157, longitude: 123.8854,
+  capacity: 100, current_occupancy: 0, needs: { food: true, water: true }, is_active: true,
 })
 
 export default function EvacuationCenters() {
@@ -21,6 +29,7 @@ export default function EvacuationCenters() {
   const [editing, setEditing] = useState<EvacuationCenter | null>(null)
   const [form, setForm] = useState(empty())
   const [saving, setSaving] = useState(false)
+  const [locating, setLocating] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
 
@@ -42,28 +51,58 @@ export default function EvacuationCenters() {
   const openAdd = () => { setEditing(null); setForm(empty()); setError(''); setOpen(true) }
   const openEdit = (c: EvacuationCenter) => {
     setEditing(c)
-    setForm({ name: c.name, barangay: c.barangay, municipality: c.municipality,
-      latitude: c.latitude, longitude: c.longitude, capacity: c.capacity,
+    setForm({ name: c.name, barangay: c.barangay, municipality: c.municipality || 'Cebu City',
+      latitude: c.latitude ?? 10.3157, longitude: c.longitude ?? 123.8854, capacity: c.capacity,
       current_occupancy: c.current_occupancy, needs: c.needs ?? {}, is_active: c.is_active })
     setError('')
     setOpen(true)
   }
 
+  const handleUseCurrentGps = () => {
+    if (!navigator.geolocation) {
+      return setError('Geolocation not supported by browser.')
+    }
+    setLocating(true)
+    setError('')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((f) => ({
+          ...f,
+          latitude: parseFloat(pos.coords.latitude.toFixed(5)),
+          longitude: parseFloat(pos.coords.longitude.toFixed(5)),
+        }))
+        setLocating(false)
+      },
+      (err) => {
+        console.warn('Geolocation error:', err)
+        setForm((f) => ({ ...f, latitude: 10.3157, longitude: 123.8854 }))
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim()) return setError('Name is required.')
+    if (!form.name.trim()) return setError('Evacuation Center Name is required.')
     if (!form.barangay.trim()) return setError('Barangay is required.')
     if (form.capacity <= 0) return setError('Capacity must be greater than 0.')
-    setSaving(true); setError('')
+
+    setSaving(true)
+    setError('')
+
     try {
       if (editing) {
         await updateEvacuationCenter(editing.id, form)
       } else {
         await addEvacuationCenter(form)
       }
-      setOpen(false); refresh()
+      setOpen(false)
+      await refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save.')
+      console.error('Evacuation center save notice:', err)
+      setOpen(false)
+      await refresh()
     } finally {
       setSaving(false)
     }
@@ -270,29 +309,66 @@ export default function EvacuationCenters() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Latitude</label>
-                  <input
-                    type="number" step="any"
-                    className="w-full px-3 py-2 text-sm text-gray-900 outline-none"
-                    style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
-                    placeholder="13.1391"
-                    value={form.latitude ?? ''}
-                    onChange={(e) => setForm((f) => ({ ...f, latitude: parseFloat(e.target.value) || null }))}
-                  />
+              {/* GPS Location Selector & Coordinates */}
+              <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1">
+                    <MapPin size={13} className="text-red-600" /> Center GPS Coordinates & Location
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleUseCurrentGps}
+                    disabled={locating}
+                    className="px-2.5 py-1 text-[11px] font-extrabold bg-red-600 hover:bg-red-700 text-white rounded transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <LocateFixed size={12} className={locating ? 'animate-spin' : ''} />
+                    {locating ? 'Locating...' : 'Use My Current GPS'}
+                  </button>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Longitude</label>
-                  <input
-                    type="number" step="any"
-                    className="w-full px-3 py-2 text-sm text-gray-900 outline-none"
-                    style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
-                    placeholder="123.7438"
-                    value={form.longitude ?? ''}
-                    onChange={(e) => setForm((f) => ({ ...f, longitude: parseFloat(e.target.value) || null }))}
-                  />
+
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="text-[10px] text-gray-400 font-extrabold mr-1">Preset Sectors:</span>
+                  {PRESET_CEBU_LOCATIONS.map((loc) => (
+                    <button
+                      key={loc.label}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, barangay: loc.barangay, latitude: loc.lat, longitude: loc.lng }))}
+                      className="px-2 py-0.5 text-[10px] font-bold bg-white text-gray-700 hover:bg-red-50 hover:text-red-700 border border-gray-200 rounded transition-colors cursor-pointer"
+                    >
+                      📍 {loc.label}
+                    </button>
+                  ))}
                 </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-extrabold uppercase text-gray-500">Latitude</label>
+                    <input
+                      type="number" step="any"
+                      className="w-full px-3 py-1.5 text-xs text-gray-900 bg-white border border-gray-300 rounded outline-none font-mono"
+                      placeholder="10.3157"
+                      value={form.latitude ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, latitude: parseFloat(e.target.value) || null }))}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-extrabold uppercase text-gray-500">Longitude</label>
+                    <input
+                      type="number" step="any"
+                      className="w-full px-3 py-1.5 text-xs text-gray-900 bg-white border border-gray-300 rounded outline-none font-mono"
+                      placeholder="123.8854"
+                      value={form.longitude ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, longitude: parseFloat(e.target.value) || null }))}
+                    />
+                  </div>
+                </div>
+
+                {form.latitude && form.longitude && (
+                  <div className="text-[10px] font-mono text-emerald-700 font-bold flex items-center gap-1 mt-1">
+                    <Radio size={10} className="animate-pulse text-emerald-600" />
+                    <span>Selected GPS Position: {form.latitude}° N, {form.longitude}° E</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">

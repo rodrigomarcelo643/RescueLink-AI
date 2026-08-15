@@ -16,8 +16,9 @@ export function useIncidents() {
       .then((data) => dispatch(setIncidents(data)))
       .finally(() => dispatch(setLoading(false)))
 
+    const channelName = `rescue_tickets_incidents_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
     const channel = supabase
-      .channel('rescue_tickets_realtime_all')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
         (payload) => dispatch(addIncident(payload.new as Incident))
       )
@@ -26,7 +27,11 @@ export function useIncidents() {
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
+    }
   }, [dispatch])
 
   return { items, loading }

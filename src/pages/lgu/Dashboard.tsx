@@ -268,10 +268,7 @@ export default function Dashboard() {
             style={{ border: '1px solid #e5e7eb', backdropFilter: 'blur(4px)' }}>
             {(['critical', 'high', 'medium', 'low'] as const).map((s) => (
               <div key={s} className="flex items-center gap-1.5">
-                <svg width="8" height="11" viewBox="0 0 28 36" fill="none">
-                  <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
-                    fill={SEVERITY_COLOR[s]} />
-                </svg>
+                <MapPin size={12} style={{ color: SEVERITY_COLOR[s] }} />
                 <span className="text-[10px] font-medium capitalize text-gray-600">{s}</span>
               </div>
             ))}

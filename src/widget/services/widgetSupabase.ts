@@ -38,8 +38,9 @@ export function subscribeToReplies(
   sessionId: string,
   onMessage: (text: string) => void,
 ) {
+  const channelName = `widget_replies_${sessionId}_${Math.random().toString(36).substring(2, 9)}`
   return getClient()
-    .channel(`widget_replies_${sessionId}`)
+    .channel(channelName)
     .on(
       'postgres_changes',
       {

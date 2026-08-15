@@ -50,8 +50,9 @@ export default function LGUShell() {
 
   // Supabase Realtime Listener for new rescue tickets & agency acceptance/declination updates
   useEffect(() => {
+    const channelName = `lgu_shell_toasts_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
     const channel = supabase
-      .channel('lgu_shell_realtime_toasts')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
@@ -90,7 +91,9 @@ export default function LGUShell() {
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
     }
   }, [dispatch, pushToast])
 

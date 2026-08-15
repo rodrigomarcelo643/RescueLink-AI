@@ -118,9 +118,9 @@ export default function LiveTrackingMap({
 }: LiveTrackingMapProps) {
   const isResponding = status === 'responding' && !!responder
 
-  // Origin coordinates
-  const originLat = responder?.lat ?? incidentLat + 0.014
-  const originLng = responder?.lng ?? incidentLng - 0.016
+  // Origin coordinates (exact station GPS)
+  const originLat = responder?.lat ?? incidentLat
+  const originLng = responder?.lng ?? incidentLng
 
   // Decoded Google Maps driving road points
   const [googleRoadPoints, setGoogleRoadPoints] = useState<Array<{ lat: number; lng: number }>>([])

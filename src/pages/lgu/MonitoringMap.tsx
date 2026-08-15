@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { APIProvider, Map } from '@vis.gl/react-google-maps'
 import { useIncidents } from '@/hooks/useIncidents'
 import MonitoringMapClusters from '@/components/incidents/MonitoringMapClusters'
 import type { Incident } from '@/types/incident'
-import { X, AlertTriangle, MapPin, Users } from 'lucide-react'
+import { X, AlertTriangle, MapPin, Users, Radio } from 'lucide-react'
 
 const SEVERITY_COLOR: Record<string, string> = {
   low: '#22c55e',
@@ -25,6 +26,19 @@ export default function MonitoringMap() {
   const { items, loading } = useIncidents()
   const [selected, setSelected] = useState<Incident | null>(null)
   const [severityFilter, setSeverityFilter] = useState<string>('all')
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 14.5995, lng: 120.9842 })
+
+  // Auto-detect user current location on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setMapCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        },
+        () => {}
+      )
+    }
+  }, [])
 
   const filtered = severityFilter === 'all'
     ? items
@@ -40,14 +54,22 @@ export default function MonitoringMap() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-extrabold tracking-tight text-gray-900">Monitoring Map</h1>
-          <p className="mt-0.5 text-sm text-gray-400">Real-time incident clusters across all areas</p>
+          <p className="mt-0.5 text-sm text-gray-400">Real-time incident clusters and spatial telemetry across all areas</p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-[11px] font-semibold text-gray-400">Live</span>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/happenings"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg transition-colors shadow-2xs"
+          >
+            <Radio size={13} className="text-purple-700 animate-pulse" /> Community Risk & Happenings 🛡️
+          </Link>
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded-md">
+            <span className="size-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[11px] font-semibold text-green-700">Live</span>
+          </div>
         </div>
       </div>
 
@@ -93,7 +115,8 @@ export default function MonitoringMap() {
 
         <APIProvider apiKey={API_KEY}>
           <Map
-            defaultCenter={{ lat: 13.1391, lng: 123.7438 }}
+            defaultCenter={mapCenter}
+            center={mapCenter}
             defaultZoom={12}
             mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'rescuelink-map'}
             style={{ width: '100%', height: '100%' }}
@@ -110,9 +133,7 @@ export default function MonitoringMap() {
         >
           {(['critical', 'high', 'medium', 'low'] as const).map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <svg width="10" height="13" viewBox="0 0 28 36" fill="none">
-                <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill={SEVERITY_COLOR[s]} />
-              </svg>
+              <MapPin size={14} style={{ color: SEVERITY_COLOR[s] }} />
               <span className="text-[11px] font-medium capitalize text-gray-600">{s}</span>
             </div>
           ))}

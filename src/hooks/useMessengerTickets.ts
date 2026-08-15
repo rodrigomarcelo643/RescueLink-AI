@@ -37,15 +37,18 @@ export function useMessengerTickets() {
   useEffect(() => {
     fetchConversations()
 
+    const channelName = `messenger_tickets_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
     const channel = supabase
-      .channel('messenger_tickets_realtime')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messenger_threads' },
         () => fetchConversations()
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
     }
   }, [])
 

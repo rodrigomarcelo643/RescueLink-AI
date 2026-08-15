@@ -19,8 +19,9 @@ export function useFacebookPosts() {
   useEffect(() => {
     fetchPosts()
 
+    const channelName = `fb_posts_realtime_${Math.random().toString(36).substring(2, 9)}_${Date.now()}`
     const channel = supabase
-      .channel('fb_posts_realtime')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fb_posts' },
         (payload) => setPosts((prev) => [payload.new as FbPost, ...prev])
       )
@@ -30,7 +31,9 @@ export function useFacebookPosts() {
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
     }
   }, [])
 

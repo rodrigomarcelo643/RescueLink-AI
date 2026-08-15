@@ -33,17 +33,36 @@ function calculateHaversineKm(lat1: number, lon1: number, lat2: number, lon2: nu
   return parseFloat((R * c).toFixed(1))
 }
 
-function getLocalCategoryForDisaster(disasterType?: string): ResponseAgency['category'] {
-  const dt = (disasterType || '').toLowerCase()
-  if (dt.includes('fire') || dt.includes('sunog')) return 'fire'
-  if (dt.includes('medical') || dt.includes('sugat') || dt.includes('injury') || dt.includes('trauma') || dt.includes('health')) return 'medical'
-  if (dt.includes('police') || dt.includes('crime') || dt.includes('gulo') || dt.includes('security')) return 'police'
-  if (dt.includes('coast') || dt.includes('maritime')) return 'military'
-  return 'rescue' // covers landslide, flood, earthquake, typhoon, etc.
+function getLocalCategoryForDisaster(incident?: Incident | string): ResponseAgency['category'] {
+  const disasterType = typeof incident === 'string' ? incident : incident?.disaster_type || ''
+  const rawMsg = typeof incident === 'object' && incident?.raw_message ? incident.raw_message : ''
+  const text = (disasterType + ' ' + rawMsg).toLowerCase()
+
+  // 1. Earthquake / Collapse / Landslide / Flood -> 'rescue' (CCDRRMO Urban Search & Rescue)
+  if (text.includes('earthquake') || text.includes('lindol') || text.includes('aftershock') || text.includes('collapse') || text.includes('guho') || text.includes('landslide') || text.includes('flood') || text.includes('baha')) {
+    return 'rescue'
+  }
+
+  // 2. Fire / Explosion -> 'fire' (BFP Fire Suppression)
+  if (text.includes('fire') || text.includes('sunog') || text.includes('nasusunog')) {
+    return 'fire'
+  }
+
+  // 3. Medical / Injury -> 'medical' (ERUF / Red Cross)
+  if (text.includes('medical') || text.includes('sugat') || text.includes('injury') || text.includes('trauma') || text.includes('ambulance')) {
+    return 'medical'
+  }
+
+  // 4. Police / Security -> 'police' (PNP Police)
+  if (text.includes('police') || text.includes('crime') || text.includes('gulo') || text.includes('security')) {
+    return 'police'
+  }
+
+  return 'rescue'
 }
 
 function matchLocally(incident: Incident, agencies: ResponseAgency[]): AgencyMatchResult {
-  const category = getLocalCategoryForDisaster(incident?.disaster_type)
+  const category = getLocalCategoryForDisaster(incident)
 
   // Find candidates matching the category, or fall back to all active agencies
   let candidates = agencies.filter((a) => a.category === category && a.is_active !== false)

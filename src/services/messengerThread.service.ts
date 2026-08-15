@@ -32,8 +32,9 @@ export function subscribeToThread(
   fbSenderId: string,
   onMessage: (msg: ThreadMessage) => void,
 ) {
+  const channelName = `thread_${fbSenderId}_${Math.random().toString(36).substring(2, 9)}`
   return supabase
-    .channel(`thread_${fbSenderId}`)
+    .channel(channelName)
     .on(
       'postgres_changes',
       {

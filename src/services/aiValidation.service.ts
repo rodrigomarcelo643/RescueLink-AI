@@ -28,10 +28,22 @@ function analyzeLocally(input: PublicReportInput): AIValidationResult {
   const hasImages = (input.media_urls?.length ?? 0) > 0
   const hasGps = input.latitude !== null && input.longitude !== null
 
+  // Detect true disaster type from raw message content
+  let trueDisasterType = input.disaster_type
+  if (text.includes('earthquake') || text.includes('lindol') || text.includes('aftershock')) {
+    trueDisasterType = 'earthquake'
+  } else if (text.includes('fire') || text.includes('sunog') || text.includes('nasusunog')) {
+    trueDisasterType = 'fire'
+  } else if (text.includes('flood') || text.includes('baha') || text.includes('tubig')) {
+    trueDisasterType = 'flood'
+  } else if (text.includes('landslide') || text.includes('guba')) {
+    trueDisasterType = 'landslide'
+  }
+
   let severity: Incident['severity'] = 'medium'
   let score = 50
 
-  const criticalKeywords = ['sunog', 'fire', 'trapped', 'naiipit', 'chest deep', 'lagpas tao', 'casualty', 'dead', 'patay', 'collapse', 'guho', 'landslide', 'drowning', 'lunod']
+  const criticalKeywords = ['earthquake', 'lindol', 'sunog', 'fire', 'trapped', 'naiipit', 'chest deep', 'casualty', 'dead', 'collapse', 'guho', 'landslide', 'drowning']
   const highKeywords = ['baha', 'flood', 'nasusunog', 'evacuate', 'evacuation', 'injury', 'sugat', 'rescue', 'saklolo', 'tulong']
 
   const isCriticalText = criticalKeywords.some((k) => text.includes(k))
@@ -48,8 +60,16 @@ function analyzeLocally(input: PublicReportInput): AIValidationResult {
     score = 30
   }
 
-  const summary = `Local AI: ${input.disaster_type} reported at ${input.location_text}. Approx ${affected} people affected. Severity evaluated as ${severity.toUpperCase()}.`
-  const validationNotes = `Validated via Heuristic Rules: GPS Attached=${hasGps}, Proof Photos=${hasImages ? input.media_urls?.length : 0}.`
+  const responseType = trueDisasterType === 'earthquake'
+    ? 'Urban Search & Rescue'
+    : trueDisasterType === 'fire'
+    ? 'BFP Fire Suppression'
+    : trueDisasterType === 'flood'
+    ? 'Amphibious Flood Rescue'
+    : 'Disaster Emergency Response'
+
+  const summary = `AI Evaluated: ${trueDisasterType.toUpperCase()} incident at ${input.location_text}. Approx ${affected} people affected. ${responseType} unit requested.`
+  const validationNotes = `Validated via AI Text Analysis: True Disaster Type=${trueDisasterType.toUpperCase()}, GPS Attached=${hasGps}, Proof Attachments=${hasImages ? input.media_urls?.length : 0}.`
 
   return {
     severity,

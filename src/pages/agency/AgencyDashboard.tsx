@@ -50,33 +50,52 @@ export default function AgencyDashboard() {
   const fetchAssignedIncidents = useCallback(async (isInitial = false) => {
     if (isInitial && incidents.length === 0) setLoading(true)
     try {
-      const all = await getIncidents()
-      // Sort incidents descending by created_at so newest data appears at the TOP (above)
+      const rawAll = await getIncidents()
+
+      // 1. Strict Deduplication by Ticket ID
+      const uniqueMap = new Map<string, Incident>()
+      rawAll.forEach((item) => {
+        if (item && item.id) {
+          uniqueMap.set(item.id, item)
+        }
+      })
+      const all = Array.from(uniqueMap.values())
       all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setIncidents(all)
 
-      // Unblock UI spinner immediately so the dashboard renders without delay!
       setLoading(false)
 
       if (agency) {
         const allAgencies = await getResponseAgencies()
-        const activeUnclosed = all.filter((i) => i.status !== 'closed')
+
+        // REQUIREMENT: AI Nearest Station Alert MUST ONLY show PENDING, UNRESOLVED tickets!
+        // Closed, Rescued, or Responding tickets are NEVER shown in AI Nearest Station Alerts!
+        const pendingTickets = all.filter((i) => i.status === 'pending')
 
         const curId = (agency.id || '').toLowerCase().trim()
         const curUsername = (agency.username || '').toLowerCase().trim()
         const curEmail = (agency.email || '').toLowerCase().trim()
         const curName = (agency.name || '').toLowerCase().trim()
 
-        // Run proximity calculations concurrently in parallel (Promise.all) for instant speed
         const results = await Promise.all(
-          activeUnclosed.map(async (inc) => {
+          pendingTickets.map(async (inc) => {
             const res = await matchNearestAgency(inc, allAgencies)
             return { inc, res }
           })
         )
 
-        const matchedItems: NearestAlertItem[] = []
+        // 2. Strict Deduplication of Nearest Station Alerts (by ID and content fingerprint)
+        const alertMap = new Map<string, NearestAlertItem>()
+        const seenFingerprints = new Set<string>()
+
         for (const { inc, res } of results) {
+          if (!inc || !inc.id || alertMap.has(inc.id)) continue
+          if (inc.status === 'closed' || inc.status === 'rescued' || inc.status === 'responding') continue
+
+          // Deduplicate test report spam with identical location & message
+          const fingerprint = `${(inc.location_text || '').toLowerCase().trim()}_${(inc.raw_message || '').toLowerCase().slice(0, 30).trim()}`
+          if (seenFingerprints.has(fingerprint)) continue
+
           const targetId = (res.agency.id || '').toLowerCase().trim()
           const targetUsername = (res.agency.username || '').toLowerCase().trim()
           const targetEmail = (res.agency.email || '').toLowerCase().trim()
@@ -89,14 +108,15 @@ export default function AgencyDashboard() {
             (curName && targetName && (curName.includes(targetName) || targetName.includes(curName)))
 
           if (isMatched) {
-            matchedItems.push({
+            seenFingerprints.add(fingerprint)
+            alertMap.set(inc.id, {
               incident: inc,
               matchResult: res,
             })
           }
         }
 
-        // Sort nearest alerts newest FIRST (above)
+        const matchedItems = Array.from(alertMap.values())
         matchedItems.sort((a, b) => new Date(b.incident.created_at).getTime() - new Date(a.incident.created_at).getTime())
         setNearestAlerts(matchedItems)
       }
@@ -110,9 +130,9 @@ export default function AgencyDashboard() {
   useEffect(() => {
     fetchAssignedIncidents(true)
 
-    // Supabase Realtime — silent background re-fetch on any rescue_tickets change
+    const channelName = `agency_dash_tickets_${agency?.id || 'all'}_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
-      .channel(`agency_dashboard_tickets_realtime`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rescue_tickets' },
@@ -120,37 +140,55 @@ export default function AgencyDashboard() {
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
+    }
   }, [agency?.id, fetchAssignedIncidents])
 
   const agencyCat = agency?.category?.toLowerCase() || ''
 
-  // Pure DB field matching + AI Nearest Station recommended matching
-  const assignedIncidents = incidents.filter((inc) => {
-    if (!agency) return false
+  // Filter assigned incidents for bottom list:
+  // Shows tickets explicitly assigned to this station, OR active responding/rescued/closed tickets
+  const assignedIncidentsMap = new Map<string, Incident>()
 
-    // 1. Explicit DB assignment match
+  incidents.forEach((inc) => {
+    if (!agency || !inc || !inc.id) return
+
     const currentId = agency.id?.toLowerCase().trim() ?? ''
     const currentUsername = (agency.username || '').toLowerCase().trim()
     const currentEmail = (agency.email || '').toLowerCase().trim()
     const currentName = (agency.name || '').toLowerCase().trim()
 
+    // 1. Explicit DB assignment match
     const targetId = (inc.assigned_agency_id || '').toLowerCase().trim()
-    if (targetId && (targetId === currentId || (currentUsername && targetId === currentUsername) || (currentEmail && targetId === currentEmail))) return true
+    if (targetId && (targetId === currentId || (currentUsername && targetId === currentUsername) || (currentEmail && targetId === currentEmail))) {
+      assignedIncidentsMap.set(inc.id, inc)
+      return
+    }
 
     const targetName = (inc.assigned_agency_name || '').toLowerCase().trim()
-    if (targetName && (targetName === currentName || currentName.includes(targetName) || targetName.includes(currentName))) return true
-    if (currentUsername && targetName && (targetName.includes(currentUsername) || currentUsername.includes(targetName))) return true
-    if (currentEmail && targetName && (targetName.includes(currentEmail) || currentEmail.includes(targetName))) return true
+    if (targetName && (targetName === currentName || currentName.includes(targetName) || targetName.includes(currentName))) {
+      assignedIncidentsMap.set(inc.id, inc)
+      return
+    }
 
-    // 2. AI Nearest Station Recommendation Match
-    const isNearestMatch = nearestAlerts.some((n) => n.incident.id === inc.id)
-    if (isNearestMatch) return true
+    // 2. Active responding/rescued/closed tickets for this station category
+    const incCategory = (inc.disaster_type || '').toLowerCase()
+    const stationCategory = (agency.category || '').toLowerCase()
+    const isCategoryMatch =
+      (stationCategory === 'fire' && incCategory.includes('fire')) ||
+      (stationCategory === 'medical' && (incCategory.includes('medical') || incCategory.includes('injury'))) ||
+      (stationCategory === 'police' && incCategory.includes('police')) ||
+      (stationCategory === 'rescue' && (incCategory.includes('flood') || incCategory.includes('landslide') || incCategory.includes('earthquake') || incCategory.includes('typhoon')))
 
-    return false
+    if (isCategoryMatch && (inc.status === 'responding' || inc.status === 'rescued' || inc.status === 'closed')) {
+      assignedIncidentsMap.set(inc.id, inc)
+    }
   })
 
-  // Ensure assigned incidents are sorted newest FIRST (above)
+  const assignedIncidents = Array.from(assignedIncidentsMap.values())
   assignedIncidents.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   const filtered = filterStatus === 'all'

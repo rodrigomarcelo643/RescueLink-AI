@@ -78,8 +78,8 @@ export default function IncidentDetailsModal({
   const incLat = incident.latitude ?? 14.5772
   const incLng = incident.longitude ?? 121.1234
 
-  const activeAgencyLat = manualAgency?.latitude ?? agencyMatch?.agency.latitude ?? (incLat + 0.014)
-  const activeAgencyLng = manualAgency?.longitude ?? agencyMatch?.agency.longitude ?? (incLng - 0.016)
+  const activeAgencyLat = manualAgency?.latitude ?? agencyMatch?.agency.latitude ?? incLat
+  const activeAgencyLng = manualAgency?.longitude ?? agencyMatch?.agency.longitude ?? incLng
 
   const responderInfo = {
     lat: activeAgencyLat,

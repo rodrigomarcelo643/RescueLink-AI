@@ -12,29 +12,42 @@
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT-412991?style=flat-square&logo=openai)](https://openai.com)
 [![License](https://img.shields.io/badge/License-MIT-red?style=flat-square)](LICENSE)
 
-**An AI-Powered Disaster Response, Relief Coordination, and Public Information Platform**
+**An AI-Powered Disaster Intelligence & Emergency Response Platform**
 
-*Built for Local Government Units and NGOs in the Philippines*
+> *"Turning Disaster Data into Life-Saving Decisions."*
+
+*Built for Local Government Units, Responders, and Communities in the Philippines*
 
 </div>
 
 ---
 
+## 🎯 Pitch & Strategic Positioning
+
+> **Winning Pitch Statement**:  
+> *"Our platform is an AI-powered Disaster Intelligence and Response System that unifies real-time monitoring, predictive risk assessment, citizen reporting, and emergency coordination into a single command center. By transforming fragmented disaster data into actionable insights and response recommendations, we help governments, responders, and communities act faster, allocate resources better, and ultimately save lives."*
+
+> **The Shift**: Moving from passive monitoring (*"We monitor disasters."*) to active decision intelligence (*"We use AI to predict impact, prioritize response, and coordinate action before lives are at risk."*).
+
+For the full pitch deck strategy, judge Q&A defense, and differentiator breakdown, see [docs/13-pitch-strategy.md](./docs/13-pitch-strategy.md).
+
+---
+
 ## The Problem
 
-During disasters, communication becomes fragmented. Citizens struggle to report emergencies, local governments receive duplicate or incomplete reports, donations are difficult to coordinate, and the public often lacks verified information. This delays rescue operations and slows relief distribution.
+During disasters, critical information is fragmented across weather agencies, social media, emergency hotlines, local governments, and communities. As a result, responders spend valuable time gathering information instead of acting, while citizens struggle to know where danger exists and what to do next.
 
-Existing tools are siloed — rescue teams use radio, citizens post on Facebook, donations come through bank transfers, and LGU dashboards are updated manually. There is no single system that connects all of these.
+Existing tools are siloed — rescue teams use radio, citizens post on Facebook, donations come through bank transfers, and LGU dashboards are updated manually. There is no single intelligence system that connects all of these.
 
 ---
 
 ## The Solution
 
-**RescueLink AI** centralizes disaster reporting, AI-assisted emergency response, humanitarian aid coordination, and public communication through familiar platforms like Facebook Messenger.
+**RescueLink AI** acts as an **AI Disaster Command Center**, unifying disaster reporting, predictive risk assessment, emergency coordination, and public information into a single interface.
 
 Instead of replacing existing communication channels, RescueLink AI **integrates with Facebook Messenger, Telegram, WhatsApp, and a web dashboard** — meeting citizens where they already are.
 
-AI automates report classification, prioritization, donation matching, and public information dissemination while providing a real-time command dashboard for LGUs and NGOs.
+AI automates report classification, prioritization, Community Risk Index scoring, donation matching, and public information dissemination while providing a real-time command dashboard for LGUs and NGOs.
 
 ---
 

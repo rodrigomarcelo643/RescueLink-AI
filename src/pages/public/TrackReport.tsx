@@ -12,7 +12,6 @@ import type { Incident } from '@/types/incident'
 import LiveTrackingMap from '@/components/incidents/LiveTrackingMap'
 import { isVideoUrl } from '@/components/incidents/ProofCarousel'
 import { getResponseAgencies } from '@/services/responseAgencies.service'
-import { matchNearestAgency } from '@/services/agencyMatcher.service'
 import type { ResponseAgency } from '@/types/responseAgency'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 
@@ -113,8 +112,9 @@ export default function TrackReport() {
     fetchTicketData()
 
     // Realtime channel for rescue_tickets table changes
+    const channelName = `ticket_track_${id}_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
-      .channel(`ticket_track_${id}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rescue_tickets' },
@@ -152,6 +152,7 @@ export default function TrackReport() {
     if (!incident) return
     const fetchAgencyInfo = async () => {
       const list = await getResponseAgencies()
+      // Only set assigned agency if the ticket has an explicit assigned agency or active responding status
       if (incident.assigned_agency_id || incident.assigned_agency_name) {
         const found = list.find(
           (a) =>
@@ -163,13 +164,11 @@ export default function TrackReport() {
           return
         }
       }
-      const matched = await matchNearestAgency(incident, list)
-      if (matched?.agency) {
-        setAssignedAgencyObj(matched.agency)
-      }
+      // If pending and unassigned, do not force a fallback agency!
+      setAssignedAgencyObj(null)
     }
     fetchAgencyInfo()
-  }, [incident?.id, incident?.assigned_agency_id, incident?.assigned_agency_name])
+  }, [incident?.id, incident?.assigned_agency_id, incident?.assigned_agency_name, incident?.status])
 
   if (loading) {
     return (
@@ -198,51 +197,41 @@ export default function TrackReport() {
   const incLat = inc.latitude ?? 14.5772
   const incLng = inc.longitude ?? 123.8854
 
-  // Responder coordinates & actual assigned team info
+  // Responder station origin coordinates (derived directly from assigned station GPS)
   const assignedAgency = assignedAgencyObj?.name || inc.assigned_agency_name || null
-  const responderLat = assignedAgencyObj?.latitude ?? (incLat + 0.014)
-  const responderLng = assignedAgencyObj?.longitude ?? (incLng - 0.016)
 
-  const responderInfo = {
-    lat: responderLat,
-    lng: responderLng,
-    unitName: assignedAgencyObj?.name || inc.assigned_agency_name || 'Assigned Response Unit',
-    contact: assignedAgencyObj?.contacts?.[0]?.value || 'Emergency Hotlines 911',
-  }
-
-  const toggleSimulateResponding = () => {
-    setUnitArrived(false)
-    setIncident((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: prev.status === 'responding' ? 'pending' : 'responding',
-          }
-        : null
-    )
-  }
+  const responderInfo = (assignedAgencyObj && assignedAgencyObj.latitude != null && assignedAgencyObj.longitude != null)
+    ? {
+        lat: assignedAgencyObj.latitude,
+        lng: assignedAgencyObj.longitude,
+        unitName: assignedAgencyObj.name,
+        contact: assignedAgencyObj.contacts?.[0]?.value || 'Emergency Hotlines 911',
+      }
+    : {
+        lat: inc.latitude ?? 10.3157,
+        lng: inc.longitude ?? 123.8854,
+        unitName: assignedAgency || 'Assigned Response Unit',
+        contact: 'Emergency Hotlines 911',
+      }
 
   return (
     <div className="min-h-screen bg-white font-sans">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white/95 px-5 py-3 backdrop-blur-sm">
-        <img src={mainLogo} alt="RescueLink AI" className="h-7 w-7 rounded-md object-cover" />
-        <span className="text-sm font-extrabold tracking-tight text-gray-900">RescueLink AI</span>
-        <span className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleSimulateResponding}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition-colors"
-          >
-            <Zap size={11} /> Simulate Status Cycle
-          </button>
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-gray-100 bg-white/95 px-3.5 sm:px-6 py-2.5 backdrop-blur-md">
+        <div className="flex items-center gap-2 shrink-0">
+          <img src={mainLogo} alt="RescueLink AI" className="h-7 w-7 rounded-md object-cover" />
+          <span className="text-sm font-extrabold tracking-tight text-gray-900">RescueLink AI</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             to="/public"
-            className="flex items-center gap-1 text-[12px] font-semibold text-gray-400 transition-colors hover:text-red-700"
+            className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors"
           >
-            <ChevronLeft size={13} /> Public Dashboard
+            <ChevronLeft size={13} />
+            <span className="hidden sm:inline">Public Dashboard</span>
+            <span className="sm:hidden font-black">Dashboard</span>
           </Link>
-        </span>
+        </div>
       </div>
 
       <div className="mx-auto max-w-2xl px-3.5 sm:px-5 py-4 sm:py-8">
@@ -338,13 +327,32 @@ export default function TrackReport() {
                 <div>
                   <h3 className="text-sm font-extrabold">
                     {assignedAgency
-                      ? `⏳ Agency Assigned (${assignedAgency}) — Awaiting Acceptance`
-                      : '⏳ Report Received — Awaiting Response Agency Acceptance & Dispatch'}
+                      ? `⏳ AI Recommended Station (${assignedAgency}) — Pending Station Review`
+                      : '⏳ Report Logged — AI Matching Nearest Emergency Station'}
                   </h3>
-                  <p className="text-xs text-amber-700 mt-0.5">
+                  <p className="text-xs text-amber-800 mt-0.5 font-medium">
                     {assignedAgency
-                      ? `Report has been dispatched to ${assignedAgency}. Station notification sent — awaiting unit acceptance and team deployment.`
-                      : 'AI has validated your report and notified emergency command units. Waiting for a response agency unit to accept and respond.'}
+                      ? `AI identified ${assignedAgency} as the nearest specialized station. Alert sent to station officer — awaiting station officer to accept dispatch.`
+                      : 'AI has validated your report and notified local emergency command units. Waiting for a station officer to accept and deploy responders.'}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {inc.status === 'responding' && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-xl bg-blue-50 p-4 border border-blue-200 text-blue-900 flex items-center gap-3 shadow-xs"
+              >
+                <Zap size={24} className="text-blue-600 shrink-0 animate-pulse" />
+                <div>
+                  <h3 className="text-sm font-extrabold text-blue-950">
+                    🟢 Station Officer Accepted — Responders En Route ({assignedAgency || 'Response Unit'})
+                  </h3>
+                  <p className="text-xs text-blue-800 mt-0.5 font-medium">
+                    Station officer accepted dispatch. Responder team is actively navigating to your location.
                   </p>
                 </div>
               </motion.div>
@@ -466,14 +474,14 @@ export default function TrackReport() {
             <Row label="Channel">
               <span className="text-sm capitalize text-gray-700">{inc.channel}</span>
             </Row>
-            {assignedAgency && (
-              <Row label="Assigned Unit">
-                <span className="inline-flex items-center gap-1.5 text-xs font-black text-blue-800 bg-blue-50 px-2.5 py-1 rounded border border-blue-200">
-                  <Building2 size={13} className="text-blue-600 shrink-0" />
-                  {assignedAgency}
-                </span>
-              </Row>
-            )}
+            <Row label="Assigned Unit">
+              <span className={`inline-flex items-center gap-1.5 text-xs font-black px-2.5 py-1 rounded border ${
+                assignedAgency ? 'text-blue-800 bg-blue-50 border-blue-200' : 'text-amber-800 bg-amber-50 border-amber-200'
+              }`}>
+                <Building2 size={13} className={assignedAgency ? 'text-blue-600 shrink-0' : 'text-amber-600 shrink-0'} />
+                {assignedAgency ? assignedAgency : 'Awaiting Station Acceptance (None)'}
+              </span>
+            </Row>
             {inc.reporter_name && (
               <Row label="Reported By">
                 <span className="text-sm text-gray-700">{inc.reporter_name}</span>

@@ -24,6 +24,7 @@ import AgencyProfile from '@/pages/agency/AgencyProfile'
 
 import LandingPage from '@/pages/public/LandingPage'
 import PublicDashboard from '@/pages/public/PublicDashboard'
+import PublicHappenings from '@/pages/public/PublicHappenings'
 import PublicReport from '@/pages/public/PublicReport'
 import TrackReport from '@/pages/public/TrackReport'
 
@@ -70,6 +71,8 @@ export default function AppRouter() {
           <Route path="/signup" element={<AuthRedirect><Signup /></AuthRedirect>} />
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           <Route path="/public" element={<PublicDashboard />} />
+          <Route path="/happenings" element={<PublicHappenings />} />
+          <Route path="/public-happenings" element={<PublicHappenings />} />
           <Route path="/report" element={<PublicReport />} />
           <Route path="/track/:id" element={<TrackReport />} />
           <Route path="/register-agency" element={<AgencyRegistrationPage />} />

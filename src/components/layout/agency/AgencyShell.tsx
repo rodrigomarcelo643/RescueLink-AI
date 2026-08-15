@@ -59,8 +59,9 @@ export default function AgencyShell() {
   useEffect(() => {
     if (!agency) return
 
+    const channelName = `agency_shell_dispatches_${agency.id}_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
-      .channel('agency_shell_realtime_dispatches')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rescue_tickets' },
@@ -79,7 +80,11 @@ export default function AgencyShell() {
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
+    }
   }, [agency])
 
   return (
