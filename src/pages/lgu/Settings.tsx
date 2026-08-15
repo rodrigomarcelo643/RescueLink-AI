@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User, Lock, Bell, Building2, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { updateProfile, updatePassword, updateEmail } from '@/services/settings.service'
+import { updateProfile, updatePassword, updateEmail, getOrganizationSettings, saveOrganizationSettings } from '@/services/settings.service'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -290,21 +290,42 @@ function NotificationsTab() {
 
 // ── Organization Tab ─────────────────────────────────────────────────────────
 function OrganizationTab() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [lguName, setLguName] = useState('LGU ' + (profile?.municipality ?? ''))
   const [hotline, setHotline] = useState('')
   const [address, setAddress] = useState('')
   const [fbPage, setFbPage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
+  useEffect(() => {
+    getOrganizationSettings(user?.id).then((settings) => {
+      if (settings.lgu_name) setLguName(settings.lgu_name)
+      if (settings.emergency_hotline) setHotline(settings.emergency_hotline)
+      if (settings.office_address) setAddress(settings.office_address)
+      if (settings.facebook_page_url) setFbPage(settings.facebook_page_url)
+      setFetching(false)
+    })
+  }, [user?.id])
+
   const handleSave = async () => {
+    if (!user) return
     setLoading(true)
     setFeedback(null)
-    // Persist to lgu_settings table (future implementation)
-    await new Promise((r) => setTimeout(r, 600))
-    setFeedback({ type: 'success', message: 'Organization settings saved.' })
-    setLoading(false)
+    try {
+      await saveOrganizationSettings(user.id, {
+        lgu_name: lguName,
+        emergency_hotline: hotline,
+        office_address: address,
+        facebook_page_url: fbPage,
+      })
+      setFeedback({ type: 'success', message: 'LGU organization settings saved and updated successfully.' })
+    } catch (e: any) {
+      setFeedback({ type: 'error', message: e.message ?? 'Failed to save organization settings.' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -312,15 +333,15 @@ function OrganizationTab() {
       <SectionCard title="LGU Information" description="Details shown on public-facing pages and advisories.">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input label="LGU / Office Name" value={lguName} onChange={(e) => setLguName(e.target.value)} placeholder="LGU Quezon City" />
-            <Input label="Emergency Hotline" value={hotline} onChange={(e) => setHotline(e.target.value)} placeholder="+63 2 XXXX XXXX" />
-            <Input label="Office Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City Hall, Quezon City" className="sm:col-span-2" />
+            <Input label="LGU / Office Name" value={lguName} onChange={(e) => setLguName(e.target.value)} placeholder="LGU Quezon City" disabled={fetching} />
+            <Input label="Emergency Hotline" value={hotline} onChange={(e) => setHotline(e.target.value)} placeholder="+63 2 XXXX XXXX" disabled={fetching} />
+            <Input label="Office Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City Hall, Quezon City" className="sm:col-span-2" disabled={fetching} />
           </div>
 
           {feedback && <Toast type={feedback.type} message={feedback.message} />}
 
           <div className="flex justify-end">
-            <Button variant="primary" size="md" loading={loading} onClick={handleSave}>
+            <Button variant="primary" size="md" loading={loading} onClick={handleSave} disabled={fetching}>
               Save Organization Info
             </Button>
           </div>
@@ -334,6 +355,7 @@ function OrganizationTab() {
             value={fbPage}
             onChange={(e) => setFbPage(e.target.value)}
             placeholder="https://facebook.com/your-lgu-page"
+            disabled={fetching}
           />
           <div
             className="flex items-start gap-3 rounded px-4 py-3"
@@ -348,7 +370,9 @@ function OrganizationTab() {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button variant="outline" size="md">View Setup Docs</Button>
+            <Button variant="primary" size="md" loading={loading} onClick={handleSave} disabled={fetching}>
+              Save Facebook URL
+            </Button>
           </div>
         </div>
       </SectionCard>
