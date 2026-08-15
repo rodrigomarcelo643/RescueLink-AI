@@ -115,7 +115,7 @@ async function dispatchNativeOSNotification(title: string, options: Notification
 export async function checkAndSendProximityNotification(
   incident: Incident,
   userCoords: { lat: number; lng: number } | null = null,
-  maxRadiusKm: number = 25
+  maxRadiusKm: number = 50
 ): Promise<boolean> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
   if (!incident || !incident.latitude || !incident.longitude) return false
@@ -161,11 +161,43 @@ export async function sendSampleDeviceNotification(): Promise<boolean> {
 }
 
 let liveSubscriptionChannel: any = null
+let pollingIntervalRef: any = null
 
 /**
- * Initializes persistent Supabase Realtime subscription for live incoming incidents on deployed production apps
+ * High-frequency polling backup engine (runs every 8s) to ensure newly inserted emergency reports trigger notifications
+ */
+function startLivePollingFallback() {
+  if (pollingIntervalRef) return
+
+  pollingIntervalRef = setInterval(async () => {
+    try {
+      if (!isNotificationPermissionGranted()) return
+
+      const { data } = await supabase
+        .from('rescue_tickets')
+        .select('*')
+        .in('status', ['pending', 'responding'])
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (data && data.length > 0) {
+        const userCoords = getSavedUserGPSCoordinates()
+        for (const inc of data as Incident[]) {
+          await checkAndSendProximityNotification(inc, userCoords, 50)
+        }
+      }
+    } catch (e) {
+      console.warn('Polling notification check error:', e)
+    }
+  }, 8000)
+}
+
+/**
+ * Initializes persistent Supabase Realtime subscription + polling backup for live incoming incidents
  */
 export function initLiveProximityPushListener() {
+  startLivePollingFallback()
+
   if (liveSubscriptionChannel) return
 
   liveSubscriptionChannel = supabase
@@ -176,13 +208,13 @@ export function initLiveProximityPushListener() {
       (payload) => {
         const newIncident = payload.new as Incident
         if (newIncident && (newIncident.status === 'pending' || newIncident.status === 'responding')) {
-          checkAndSendProximityNotification(newIncident, null, 30)
+          checkAndSendProximityNotification(newIncident, null, 50)
         }
       }
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log('📡 Live Proximity Alert Push Engine subscribed to Supabase Realtime!')
+        console.log('📡 Live Proximity Alert Push Engine subscribed to Supabase Realtime & Polling Backup!')
       }
     })
 }
