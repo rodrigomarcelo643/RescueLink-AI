@@ -16,6 +16,7 @@ import HappeningDetailModal from '@/components/incidents/HappeningDetailModal'
 import PWAInstallWidgetModal from '@/components/shared/PWAInstallWidgetModal'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import {
+  requestDeviceNotificationPermission,
   sendSampleDeviceNotification,
   checkAndSendProximityNotification,
   saveUserGPSCoordinates,
