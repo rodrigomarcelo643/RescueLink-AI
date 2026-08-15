@@ -391,6 +391,7 @@ export default function TrackReport() {
             </div>
 
             <LiveTrackingMap
+              incidentId={inc.id}
               incidentLat={incLat}
               incidentLng={incLng}
               disasterType={inc.disaster_type}

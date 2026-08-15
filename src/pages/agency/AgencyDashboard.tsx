@@ -19,6 +19,8 @@ import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 
+import { recordAgencyStartLocation, startLiveAgencyGPSTracking } from '@/services/agencyLocationTracker.service'
+
 const SEVERITY_COLOR: Record<Incident['severity'], { bg: string; text: string; border: string }> = {
   critical: { bg: '#fef2f2', text: '#b91c1c', border: '#fecaca' },
   high:     { bg: '#fff7ed', text: '#c2410c', border: '#ffedd5' },
@@ -199,9 +201,37 @@ export default function AgencyDashboard() {
   const rescuedCount = assignedIncidents.filter((i) => i.status === 'rescued' || i.status === 'closed').length
   const pendingCount = assignedIncidents.filter((i) => i.status === 'pending').length
 
+  const recordAndStartLiveTracking = (incidentId: string) => {
+    if (!agency) return
+    const startLat = agency.latitude ?? 10.3157
+    const startLng = agency.longitude ?? 123.8854
+
+    // Lock agency initial start GPS location for the route and start live tracking
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          recordAgencyStartLocation(incidentId, pos.coords.latitude, pos.coords.longitude)
+          startLiveAgencyGPSTracking(incidentId, agency.id)
+        },
+        () => {
+          recordAgencyStartLocation(incidentId, startLat, startLng)
+          startLiveAgencyGPSTracking(incidentId, agency.id)
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      )
+    } else {
+      recordAgencyStartLocation(incidentId, startLat, startLng)
+      startLiveAgencyGPSTracking(incidentId, agency.id)
+    }
+  }
+
   const handleUpdateStatus = async (id: string, newStatus: Incident['status']) => {
     setUpdatingId(id)
     try {
+      if (newStatus === 'responding') {
+        recordAndStartLiveTracking(id)
+      }
+
       if (agency && (newStatus === 'responding' || newStatus === 'pending')) {
         // Automatically persist assigned_agency_id, assigned_agency_name, and status in DB
         await assignAgencyToIncident(
@@ -239,6 +269,8 @@ export default function AgencyDashboard() {
     if (!agency) return
     setUpdatingId(incidentId)
     try {
+      recordAndStartLiveTracking(incidentId)
+
       // Assign ticket to current agency AND set status to responding in Supabase DB
       await assignAgencyToIncident(
         incidentId,

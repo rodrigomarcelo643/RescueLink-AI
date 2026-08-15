@@ -242,6 +242,7 @@ export default function IncidentDetailsModal({
                     </button>
                   </div>
                   <LiveTrackingMap
+                    incidentId={incident.id}
                     incidentLat={incLat}
                     incidentLng={incLng}
                     disasterType={incident.disaster_type}

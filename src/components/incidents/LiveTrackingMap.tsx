@@ -88,7 +88,10 @@ function GoogleMapDirectionsOverlay({
   return null
 }
 
+import { getAgencyStartLocation } from '@/services/agencyLocationTracker.service'
+
 interface LiveTrackingMapProps {
+  incidentId?: string
   incidentLat: number
   incidentLng: number
   disasterType: string
@@ -106,6 +109,7 @@ interface LiveTrackingMapProps {
 }
 
 export default function LiveTrackingMap({
+  incidentId,
   incidentLat,
   incidentLng,
   disasterType,
@@ -118,9 +122,18 @@ export default function LiveTrackingMap({
 }: LiveTrackingMapProps) {
   const isResponding = status === 'responding' && !!responder
 
-  // Origin coordinates (exact station GPS)
-  const originLat = responder?.lat ?? incidentLat
-  const originLng = responder?.lng ?? incidentLng
+  // Origin coordinates (locked real initial agency start GPS)
+  const startPos = useMemo(() => {
+    const rawLat = responder?.lat ?? incidentLat
+    const rawLng = responder?.lng ?? incidentLng
+    if (incidentId) {
+      return getAgencyStartLocation(incidentId, rawLat, rawLng)
+    }
+    return { lat: rawLat, lng: rawLng }
+  }, [incidentId, responder?.lat, responder?.lng, incidentLat, incidentLng])
+
+  const originLat = startPos.lat
+  const originLng = startPos.lng
 
   // Decoded Google Maps driving road points
   const [googleRoadPoints, setGoogleRoadPoints] = useState<Array<{ lat: number; lng: number }>>([])
