@@ -74,14 +74,6 @@ export default function PublicHappenings() {
       // Fetch public happenings stream
       const hList = await getPublicHappenings(coords)
       setHappenings(hList)
-
-      // Evaluate proximity alert push notification for latest unresolved emergency ticket
-      if (incData.length > 0) {
-        const latest = incData[0]
-        if (latest.status === 'pending' || latest.status === 'responding') {
-          checkAndSendProximityNotification(latest, { lat: targetLat, lng: targetLng }, 15)
-        }
-      }
     } catch (e) {
       console.error('Error fetching public happenings:', e)
     } finally {
