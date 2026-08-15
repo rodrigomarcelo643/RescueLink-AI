@@ -12,7 +12,7 @@ import mainLogo from '/main_logo.jpg'
 export default function FloatingIncidentWidget() {
   const location = useLocation()
   
-  // Show widget open by default on desktop screens (>= 640px width)
+  // 1. ALL HOOKS FIRST (React Rule of Hooks)
   const [isOpen, setIsOpen] = useState(() => {
     try {
       const saved = localStorage.getItem('rescuelink_floating_widget_open')
@@ -31,33 +31,6 @@ export default function FloatingIncidentWidget() {
 
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
-
-  const toggleOpen = (val: boolean) => {
-    setIsOpen(val)
-    try { localStorage.setItem('rescuelink_floating_widget_open', String(val)) } catch (e) {}
-  }
-
-  const toggleMinimized = (val: boolean) => {
-    setIsMinimized(val)
-    try { localStorage.setItem('rescuelink_floating_widget_minimized', String(val)) } catch (e) {}
-  }
-
-  // Check if current route is a public citizen route (Landing, Public Dashboard, Live Incident Feed, Report, Track)
-  const isPublicRoute =
-    location.pathname === '/' ||
-    location.pathname === '/public' ||
-    location.pathname === '/near-incident-live-monitoring' ||
-    location.pathname === '/report' ||
-    location.pathname.startsWith('/track/')
-
-  // Do not render floating widget inside LGU/Agency internal dashboards or inside standalone widget window mode
-  const isWidgetModeWindow =
-    new URLSearchParams(location.search).get('mode') === 'widget' ||
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: minimal-ui)').matches ||
-    (navigator as any).standalone === true
-
-  if (!isPublicRoute || isWidgetModeWindow) return null
 
   useEffect(() => {
     let active = true
@@ -82,6 +55,17 @@ export default function FloatingIncidentWidget() {
     }
   }, [])
 
+  // 2. HELPER FUNCTIONS
+  const toggleOpen = (val: boolean) => {
+    setIsOpen(val)
+    try { localStorage.setItem('rescuelink_floating_widget_open', String(val)) } catch (e) {}
+  }
+
+  const toggleMinimized = (val: boolean) => {
+    setIsMinimized(val)
+    try { localStorage.setItem('rescuelink_floating_widget_minimized', String(val)) } catch (e) {}
+  }
+
   const handlePopDesktopWindow = (e: React.MouseEvent) => {
     e.stopPropagation()
     const appUrl = `${window.location.origin}/near-incident-live-monitoring?mode=widget`
@@ -90,7 +74,21 @@ export default function FloatingIncidentWidget() {
     if (popWin) popWin.focus()
   }
 
-  if (isWidgetModeWindow) return null
+  // 3. CONDITIONAL RENDER GUARDS (Must be placed AFTER all hooks)
+  const isPublicRoute =
+    location.pathname === '/' ||
+    location.pathname === '/public' ||
+    location.pathname === '/near-incident-live-monitoring' ||
+    location.pathname === '/report' ||
+    location.pathname.startsWith('/track/')
+
+  const isWidgetModeWindow =
+    new URLSearchParams(location.search).get('mode') === 'widget' ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    (navigator as any).standalone === true
+
+  if (!isPublicRoute || isWidgetModeWindow) return null
 
   const activeCount = incidents.length
 
