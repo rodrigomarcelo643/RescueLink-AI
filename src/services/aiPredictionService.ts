@@ -137,12 +137,8 @@ export function calculateAIPrediction(
     (i) => i.latitude !== null && i.longitude !== null && i.status !== 'closed' && i.status !== 'rescued'
   )
 
-  // If DB has no nearby incidents (within 25km), dynamically generate sample incidents relative to the user's current GPS location!
-  const nearbyCount = validIncidents.filter(
-    (i) => haversineKm(targetLat, targetLng, i.latitude!, i.longitude!) <= 25
-  ).length
-
-  if (nearbyCount === 0 || forcedHazardType) {
+  // Only generate synthetic test scenario samples when user explicitly selects a test disaster scenario filter!
+  if (forcedHazardType) {
     const locName = customLocationName || 'Your Current Proximity'
     const hazardCategory = forcedHazardType || 'flood'
 
@@ -195,7 +191,7 @@ export function calculateAIPrediction(
       updated_at: new Date().toISOString(),
     }))
 
-    validIncidents = forcedHazardType ? dynamicSamples : [...validIncidents, ...dynamicSamples]
+    validIncidents = dynamicSamples
   }
 
   const rankedNearest: NearestIncidentInfo[] = validIncidents
@@ -251,19 +247,16 @@ export function calculateAIPrediction(
     disasterCounts[type] = (disasterCounts[type] || 0) + 1
   })
 
-  // Check if all nearby incidents are resolved (rescued or closed) and no pending/responding tickets remain
+  // Check if all nearby incidents are resolved (rescued or closed) or if 0 active tickets remain
   const activeUnresolvedIncidents = rankedNearest.filter(
     (item) => item.incident.status === 'pending' || item.incident.status === 'responding'
   )
-  const resolvedIncidents = rankedNearest.filter(
-    (item) => item.incident.status === 'rescued' || item.incident.status === 'closed'
-  )
 
-  const isAllResolved = !forcedHazardType && activeUnresolvedIncidents.length === 0 && resolvedIncidents.length > 0
+  const isAllResolved = !forcedHazardType && activeUnresolvedIncidents.length === 0
 
   // Determine dominant hazard
   let dominantHazard = isAllResolved
-    ? 'All Clear (Operations Resolved)'
+    ? 'All Clear (Area Safe & Operations Resolved)'
     : forcedHazardType
     ? forcedHazardType.charAt(0).toUpperCase() + forcedHazardType.slice(1)
     : 'Flash Flood & Inundation'
@@ -438,7 +431,7 @@ export function calculateAIPrediction(
     dominantHazard,
     forecastSummary,
     patternInsights,
-    nearestIncidents: rankedNearest.slice(0, 6),
+    nearestIncidents: isAllResolved ? [] : rankedNearest.slice(0, 6),
     mapAlert,
     recommendedActions,
     predictedTrend: riskScore > 65 ? 'increasing' : riskScore > 35 ? 'stable' : 'decreasing',
