@@ -38,17 +38,31 @@
   "description": "Real-time disaster risk telemetry and public happenings app.",
   "shortcuts": [
     {
-      "name": "RescueLink AI",
-      "short_name": "RescueLink AI",
+      "name": "Public Dashboard 📊",
+      "short_name": "Dashboard",
+      "description": "Open RescueLink AI Public Disaster Dashboard",
+      "url": "/public",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Public Happenings Hub 🚨",
+      "short_name": "Happenings",
       "description": "View live community risk telemetry and map alerts",
       "url": "/happenings",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Report SOS Incident",
+      "name": "Report SOS Incident 🆘",
       "short_name": "Report SOS",
-      "description": "File instant citizen disaster SOS report",
+      "description": "File instant citizen disaster SOS emergency report",
       "url": "/report",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "RescueLink AI Main App 🚀",
+      "short_name": "RescueLink AI",
+      "description": "Open RescueLink AI Standalone Disaster Portal",
+      "url": "/",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

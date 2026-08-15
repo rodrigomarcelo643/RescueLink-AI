@@ -25,6 +25,28 @@
           window.onPWAInstallPromptReady(e);
         }
       });
+
+      // 🚀 Auto-request Location & Notification permissions on PWA startup
+      window.addEventListener('DOMContentLoaded', () => {
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {});
+        }
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              try {
+                localStorage.setItem('rescuelink_user_gps', JSON.stringify({
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  time: Date.now()
+                }));
+              } catch(e) {}
+            },
+            () => {},
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
+      });
     </script>
   </head>
   <body>
