@@ -198,6 +198,8 @@ export default function HappeningDetailModal({ open, onClose, item, userCoords }
                 ))}
               </div>
             </div>
+          )}
+
           {/* Expanded Image Modal Overlay */}
           {activeMedia && (
             <div
