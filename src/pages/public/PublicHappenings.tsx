@@ -230,31 +230,31 @@ export default function PublicHappenings() {
       )}
 
       {/* Main Container */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-6 flex flex-col gap-6">
+      <div className="mx-auto max-w-7xl px-2.5 sm:px-6 lg:px-8 pt-4 sm:pt-6 flex flex-col gap-4 sm:gap-6">
 
         {/* Hero Title & Live Indicator */}
-        <div className="bg-gradient-to-r from-red-900 via-purple-950 to-gray-900 text-white rounded-2xl p-6 shadow-md border border-red-800/40 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+        <div className="bg-gradient-to-r from-red-900 via-purple-950 to-gray-900 text-white rounded-2xl p-4 sm:p-6 shadow-md border border-red-800/40 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none hidden sm:block">
             <Radio size={160} />
           </div>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-red-600/90 text-white rounded-full flex items-center gap-1">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                <span className="px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-red-600/90 text-white rounded-full flex items-center gap-1">
                   <Activity size={12} /> Live Telemetry
                 </span>
-                <span className="text-xs text-red-200 font-semibold">Updated Seconds Ago</span>
+                <span className="text-[11px] sm:text-xs text-red-200 font-semibold">Updated Seconds Ago</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+              <h2 className="text-lg sm:text-2xl font-black tracking-tight text-white leading-tight">
                 Public Happenings & Community Risk Hub
               </h2>
-              <p className="mt-1 text-xs text-gray-200 max-w-2xl font-medium">
+              <p className="mt-1 text-xs text-gray-200 max-w-2xl font-medium leading-relaxed">
                 Real-time neighborhood event telemetry, community risk assessments, and nearest accident tracking to keep residents safe and informed.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <button
                 onClick={async () => {
                   const ok = await sendSampleDeviceNotification()
@@ -264,14 +264,14 @@ export default function PublicHappenings() {
                     alert('Please allow Notifications in your browser/device settings to receive background emergency proximity alerts.')
                   }
                 }}
-                className="px-3.5 py-2 text-xs font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="w-full sm:w-auto px-3.5 py-2 text-xs font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Bell size={14} className="text-slate-950 animate-bounce" /> Enable Phone Push Alerts 🔔
               </button>
               <button
                 onClick={handleLocateUser}
                 disabled={locating}
-                className="px-4 py-2 text-xs font-extrabold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer shrink-0"
+                className="w-full sm:w-auto px-4 py-2 text-xs font-extrabold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
               >
                 <Navigation size={14} className={locating ? 'animate-spin' : ''} />
                 {locating ? 'Locating Spot…' : 'Inspect My Location Risk'}
@@ -283,14 +283,14 @@ export default function PublicHappenings() {
         {/* AI Disaster & Evacuation Recommendation Banner */}
         {prediction && (
           prediction.riskScore === 0 || prediction.calamityReadiness.evacuationStatus === 'normal' ? (
-            <div className="bg-gradient-to-r from-emerald-950 via-green-900 to-slate-900 text-white p-5 rounded-2xl border border-emerald-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-emerald-950 via-green-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-emerald-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-start gap-3">
-                <div className="size-11 rounded-xl bg-emerald-800/80 border border-emerald-600 flex items-center justify-center text-emerald-300 font-black shrink-0 mt-0.5">
-                  <ShieldCheck size={24} className="animate-pulse text-emerald-300" />
+                <div className="size-10 sm:size-11 rounded-xl bg-emerald-800/80 border border-emerald-600 flex items-center justify-center text-emerald-300 font-black shrink-0 mt-0.5">
+                  <ShieldCheck size={22} className="animate-pulse text-emerald-300" />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white rounded">
+                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white rounded">
                       🟢 SECTOR ALL CLEAR — NO ACTIVE RISK
                     </span>
                     <span className="text-xs font-bold text-emerald-300 font-mono">
@@ -308,58 +308,39 @@ export default function PublicHappenings() {
               <div className="flex items-center gap-2 shrink-0">
                 <Link
                   to="/report"
-                  className="px-4 py-2.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-600 rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-600 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
                 >
                   <FileText size={14} /> Report New Incident 🚨
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-purple-950 via-purple-900 to-slate-900 text-white p-5 rounded-2xl border border-purple-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-purple-950 via-purple-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-purple-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-start gap-3">
-                <div className="size-11 rounded-xl bg-purple-800/80 border border-purple-600 flex items-center justify-center text-purple-300 font-black shrink-0 mt-0.5">
-                  <Radio size={22} className="animate-pulse" />
+                <div className="size-10 sm:size-11 rounded-xl bg-purple-800/80 border border-purple-600 flex items-center justify-center text-purple-300 font-black shrink-0 mt-0.5">
+                  <ShieldAlert size={22} className="animate-pulse text-amber-400" />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-red-600 text-white rounded">
-                      INCOMING HAZARD DETECTED: {prediction.dominantHazard.toUpperCase()}
+                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-red-600 text-white rounded">
+                      {prediction.riskLevel.toUpperCase()} RISK ({(prediction.dominantHazard || 'DISASTER').toUpperCase()})
                     </span>
-                    <span className="text-xs font-bold text-purple-300 font-mono">
+                    <span className="text-xs font-bold text-amber-300 font-mono">
                       Live Risk Score: {prediction.riskScore}%
                     </span>
-                    {prediction.calamityReadiness.shelterCapabilityBadge && (
-                      <span className="px-2 py-0.5 text-[10px] font-black bg-amber-400 text-slate-950 rounded">
-                        {prediction.calamityReadiness.shelterCapabilityBadge}
-                      </span>
-                    )}
                   </div>
                   <h3 className="text-sm sm:text-base font-extrabold text-white">
-                    AI Recommends Preemptive Evacuation to: <span className="text-amber-300">{prediction.calamityReadiness.nearestOpenShelterName}</span>
+                    AI Recommends Preemptive Evacuation to: {prediction.calamityReadiness.matchedEvacuationCenter?.name || 'Nearest Evacuation Center'}
                   </h3>
                   <p className="text-xs text-purple-200 font-medium max-w-2xl">
-                    📍 Located <strong>{prediction.calamityReadiness.shelterDistanceKm} km</strong> from your GPS position • Matched for <strong>{prediction.dominantHazard.toUpperCase()}</strong> Affected Citizens (<strong>{prediction.calamityReadiness.availableCapacity} spots available</strong>).
-                    {prediction.calamityReadiness.shelterSpecialty && (
-                      <span className="block mt-1 text-[11px] text-purple-300 font-semibold">
-                        ✨ Category Specialty: {prediction.calamityReadiness.shelterSpecialty}
-                      </span>
-                    )}
+                    📍 Located {prediction.calamityReadiness.matchedEvacuationCenter?.distance || 'nearby'} from your GPS position ({prediction.calamityReadiness.matchedEvacuationCenter?.capacity || 400} spots available).
                   </p>
                 </div>
               </div>
-
               <div className="flex items-center gap-2 shrink-0">
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(prediction.calamityReadiness.nearestOpenShelterName + ' ' + prediction.locationName)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2.5 text-xs font-black text-purple-950 bg-white hover:bg-purple-50 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Navigation size={14} className="text-purple-800" /> Route Evacuation Maps <ExternalLink size={12} />
-                </a>
                 <Link
                   to="/report"
-                  className="px-4 py-2.5 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
                 >
                   <FileText size={14} /> Send SOS 🚨
                 </Link>
@@ -369,7 +350,7 @@ export default function PublicHappenings() {
         )}
 
         {/* AI Forecast Inspector & Happenings Map Alert */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Left Column: AI Prediction Inspector */}
           <div className="lg:col-span-6 flex flex-col gap-4">
             <AIPredictionInspector
@@ -386,20 +367,20 @@ export default function PublicHappenings() {
 
           {/* Right Column: Happenings Interactive Map Alert */}
           <div className="lg:col-span-6 flex flex-col gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col gap-3">
-              <div className="flex items-center justify-between">
+            <div className="bg-white rounded-xl border border-gray-200 p-3.5 sm:p-4 shadow-sm flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
-                    <Radio size={16} className="text-red-600" />
+                  <h3 className="text-xs sm:text-sm font-extrabold text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                    <Radio size={15} className="text-red-600 shrink-0" />
                     Public Map Alert & Incident Heatmap
                   </h3>
-                  <p className="text-[11px] text-gray-500 font-medium">
+                  <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium">
                     Click any location on the map to evaluate risk or click incident markers to view full details.
                   </p>
                 </div>
 
                 {prediction?.mapAlert && (
-                  <span className="px-2.5 py-1 text-[10px] font-black uppercase bg-red-100 text-red-700 rounded-full animate-pulse">
+                  <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-red-100 text-red-700 rounded-full animate-pulse shrink-0">
                     Active Map Alert
                   </span>
                 )}
@@ -417,21 +398,21 @@ export default function PublicHappenings() {
         </div>
 
         {/* Live Public Happenings Stream */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
+        <div className="bg-white rounded-2xl border border-gray-200 p-3.5 sm:p-6 shadow-sm flex flex-col gap-4 sm:gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-gray-100">
             <div>
-              <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
-                <Radio size={18} className="text-purple-600" />
+              <h3 className="text-sm sm:text-base font-extrabold text-gray-900 flex items-center gap-2">
+                <Radio size={17} className="text-purple-600 shrink-0" />
                 Live Public Happenings & Community Feed
               </h3>
-              <p className="text-xs text-gray-500 font-medium mt-0.5">
-                Aggregated public stream of verified emergency reports, map alerts, and neighborhood risk assessments. Click any item to view full details.
+              <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">
+                Aggregated public stream of verified emergency reports, map alerts, and neighborhood risk assessments.
               </p>
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-gray-400 font-extrabold flex items-center gap-1 mr-1">
+            {/* Filter Pills — Smooth Horizontal Scroll on Mobile */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
+              <span className="text-[11px] text-gray-400 font-extrabold flex items-center gap-1 mr-1 shrink-0">
                 <Filter size={12} /> Filter:
               </span>
               {[
@@ -446,7 +427,7 @@ export default function PublicHappenings() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0"
                     style={{
                       border: '1px solid',
                       borderColor: activeTab === tab.id ? '#b91c1c' : '#e5e7eb',
@@ -454,7 +435,7 @@ export default function PublicHappenings() {
                       color: activeTab === tab.id ? '#b91c1c' : '#4b5563',
                     }}
                   >
-                    <IconComponent size={13} />
+                    <IconComponent size={13} className="shrink-0" />
                     <span>{tab.label}</span>
                   </button>
                 )
@@ -469,44 +450,44 @@ export default function PublicHappenings() {
               description="No public items logged for this category."
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
               {filteredHappenings.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => handleOpenDetail(item)}
-                  className="group flex flex-col justify-between gap-4 bg-white p-5 rounded-xl border border-gray-200 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer"
+                  className="group flex flex-col justify-between gap-3.5 sm:gap-4 bg-white p-4 sm:p-5 rounded-xl border border-gray-200 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer"
                 >
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
                       <span
-                        className="px-2.5 py-0.5 text-[10px] font-black uppercase rounded text-white"
+                        className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase rounded text-white"
                         style={{ backgroundColor: item.badgeColor }}
                       >
                         {item.badgeText}
                       </span>
-                      <span className="text-[11px] font-bold text-gray-400">
+                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-400">
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-extrabold text-gray-900 group-hover:text-red-700 transition-colors">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-gray-900 group-hover:text-red-700 transition-colors leading-snug">
                         {item.title}
                       </h4>
-                      <p className="mt-1 text-xs text-gray-600 font-medium flex items-center gap-1">
-                        <MapPin size={13} className="shrink-0 text-red-600" />
-                        <span>{item.locationText}</span>
+                      <p className="mt-1 text-[11px] sm:text-xs text-gray-600 font-medium flex items-center gap-1">
+                        <MapPin size={12} className="shrink-0 text-red-600" />
+                        <span className="truncate">{item.locationText}</span>
                       </p>
                     </div>
 
-                    <p className="text-xs text-gray-600 line-clamp-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100 font-medium">
+                    <p className="text-[11px] sm:text-xs text-gray-600 line-clamp-3 bg-gray-50 p-2.5 rounded-lg border border-gray-100 font-medium leading-relaxed">
                       {item.summary}
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                    <span className="text-gray-400 font-semibold text-[11px]">Click to view full details</span>
-                    <span className="font-extrabold text-red-700 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                  <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
+                    <span className="text-gray-400 font-semibold text-[10px] sm:text-[11px]">Click for details</span>
+                    <span className="font-extrabold text-red-700 group-hover:translate-x-1 transition-transform flex items-center gap-1 text-[11px] sm:text-xs">
                       <Search size={12} /> Full Details <ChevronRight size={13} />
                     </span>
                   </div>
