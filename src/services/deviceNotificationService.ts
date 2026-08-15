@@ -103,11 +103,18 @@ async function dispatchNativeOSNotification(title: string, options: Notification
 
   // 1. Direct Window Notification (Instant banner popup on Desktop & Active Chrome Tabs)
   try {
-    new Notification(title, {
+    const n = new Notification(title, {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       ...options,
     })
+    if (options.url) {
+      n.onclick = (e) => {
+        e.preventDefault()
+        window.focus()
+        window.location.href = options.url!
+      }
+    }
     dispatched = true
   } catch (winErr) {
     console.warn('Window notification dispatch notice:', winErr)
@@ -155,8 +162,8 @@ export async function checkAndSendProximityNotification(
 
   if (distKm > maxRadiusKm && !forceShow) return false
 
-  const incidentId = incident.id || `inc-${Date.now()}`
-  if (!forceShow) {
+  const incidentId = incident.id || ''
+  if (!forceShow && incidentId) {
     const notifiedRaw = localStorage.getItem(NOTIFIED_INCIDENTS_KEY) || '[]'
     const notifiedList: string[] = JSON.parse(notifiedRaw)
     if (notifiedList.includes(incidentId)) return false
@@ -169,14 +176,15 @@ export async function checkAndSendProximityNotification(
   const disasterType = (incident.disaster_type || incident.type || 'Emergency').toUpperCase()
   const severity = (incident.severity || 'high').toUpperCase()
   const locationText = incident.location_text || incident.address || 'Nearby Sector'
+  const trackingUrl = incidentId ? `/track/${incidentId}` : '/happenings'
 
   const title = `🚨 EMERGENCY ALERT (${severity}): ${disasterType}`
-  const body = `📍 ${distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`} away: ${locationText}. Tap to view safety route & evacuation center.`
+  const body = `📍 ${distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`} away: ${locationText}. Tap to track live response & evacuation route.`
 
   return dispatchNativeOSNotification(title, {
     body,
-    tag: `incident-${incidentId}`,
-    url: '/happenings',
+    tag: `incident-${incidentId || Date.now()}`,
+    url: trackingUrl,
   })
 }
 

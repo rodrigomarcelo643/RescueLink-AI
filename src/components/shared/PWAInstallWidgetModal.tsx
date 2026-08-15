@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Smartphone, Laptop } from 'lucide-react'
+import { Smartphone, Laptop, ExternalLink } from 'lucide-react'
 
 export default function PWAInstallWidgetModal() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>((window as any).deferredPWAInstallPrompt || null)
   const [isStandalone, setIsStandalone] = useState(false)
+  const [isAppInstalled, setIsAppInstalled] = useState(false)
 
   useEffect(() => {
-    // Check if already running in standalone app or widget window mode
+    // 1. Check if running inside standalone app or widget window mode
     const urlParams = new URLSearchParams(window.location.search)
     const isWidgetMode = urlParams.get('mode') === 'widget'
 
@@ -18,36 +19,77 @@ export default function PWAInstallWidgetModal() {
 
     setIsStandalone(isStandaloneApp)
 
-    // Capture browser native install prompt
+    // 2. Check if PWA was previously installed or recorded in localStorage
+    const savedInstalled = localStorage.getItem('rescuelink_pwa_installed') === 'true'
+    if (savedInstalled) {
+      setIsAppInstalled(true)
+    }
+
+    // 3. Chromium Native Check for installed PWA
+    if ('getInstalledRelatedApps' in navigator) {
+      ;(navigator as any)
+        .getInstalledRelatedApps()
+        .then((apps: any[]) => {
+          if (apps && apps.length > 0) {
+            setIsAppInstalled(true)
+            localStorage.setItem('rescuelink_pwa_installed', 'true')
+          }
+        })
+        .catch(() => {})
+    }
+
+    // 4. Capture browser native install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       ;(window as any).deferredPWAInstallPrompt = e
       setDeferredPrompt(e)
     }
 
+    // 5. Capture appinstalled event when user completes installation
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true)
+      localStorage.setItem('rescuelink_pwa_installed', 'true')
+      ;(window as any).deferredPWAInstallPrompt = null
+      setDeferredPrompt(null)
+    }
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
   }, [])
+
+  const handleOpenApp = () => {
+    const appUrl = `${window.location.origin}/happenings?mode=widget`
+    const windowFeatures = 'width=480,height=800,left=200,top=100,resizable=yes,scrollbars=yes,status=no,location=no'
+    const newWindow = window.open(appUrl, 'RescueLinkPWAApp', windowFeatures)
+    if (newWindow) {
+      newWindow.focus()
+    } else {
+      window.location.href = appUrl
+    }
+  }
 
   const handleDirectInstallOrLaunch = async () => {
     const promptObj = (window as any).deferredPWAInstallPrompt || deferredPrompt
 
     if (promptObj) {
       try {
-        // 🚀 1. Trigger Chrome/Edge/Android Native Installation Dialog!
         await promptObj.prompt()
         const choice = await promptObj.userChoice
 
         if (choice.outcome === 'accepted') {
-          // User clicked Install -> Clear prompt and return
+          setIsAppInstalled(true)
+          localStorage.setItem('rescuelink_pwa_installed', 'true')
           ;(window as any).deferredPWAInstallPrompt = null
           setDeferredPrompt(null)
           return
         }
 
         if (choice.outcome === 'dismissed') {
-          // 🛑 User clicked Cancel/Dismiss on Native Install Prompt!
-          // DO NOT download .url file and DO NOT open popup window.
           return
         }
       } catch (err) {
@@ -55,18 +97,30 @@ export default function PWAInstallWidgetModal() {
       }
     }
 
-    // 🚀 2. If browser does not support native prompt (e.g. Safari), open Standalone Widget Window Mode
-    const widgetUrl = `${window.location.origin}/happenings?mode=widget`
-    const windowFeatures = 'width=460,height=780,left=150,top=100,resizable=yes,scrollbars=yes,status=no,location=no,toolbar=no,menubar=no'
-
-    const newWindow = window.open(widgetUrl, 'RescueLinkHappeningsWidget', windowFeatures)
-    if (newWindow) {
-      newWindow.focus()
-    }
+    // Fallback widget window
+    handleOpenApp()
   }
 
+  // If already running inside standalone PWA window, hide button
   if (isStandalone) return null
 
+  // If app is ALREADY INSTALLED, replace "Install" with "Open App 📱"
+  if (isAppInstalled) {
+    return (
+      <button
+        onClick={handleOpenApp}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-white bg-gradient-to-r from-emerald-600 via-teal-700 to-green-700 hover:from-emerald-700 hover:to-green-800 border border-emerald-400/40 rounded-xl transition-all shadow-md cursor-pointer shrink-0"
+        title="Open Installed RescueLink AI App"
+      >
+        <Smartphone size={13} className="text-amber-300 shrink-0" />
+        <span className="hidden sm:inline">Open RescueLink AI App 🚀</span>
+        <span className="sm:hidden font-black">Open App 📱</span>
+        <ExternalLink size={11} className="text-emerald-200 hidden sm:inline" />
+      </button>
+    )
+  }
+
+  // If NOT INSTALLED, show "Install App / Launch Widget 📲💻"
   return (
     <button
       onClick={handleDirectInstallOrLaunch}

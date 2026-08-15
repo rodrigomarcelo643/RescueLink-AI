@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rescuelink-pwa-v5'
+const CACHE_NAME = 'rescuelink-pwa-v6'
 const URLS_TO_CACHE = ['/', '/manifest.json', '/main_logo.jpg', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
@@ -34,7 +34,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let data = {
     title: '🚨 EMERGENCY ALERT NEAR YOU',
-    body: 'A new emergency incident has been reported in your sector. Tap to view hazard map.',
+    body: 'A new emergency incident has been reported in your sector. Tap to view ticket tracking & rescue status.',
     url: '/happenings',
     tag: 'emergency-push-alert',
   }
@@ -60,7 +60,7 @@ self.addEventListener('push', (event) => {
   )
 })
 
-// Handle background notification click (opens app / widget window even if browser tab was closed)
+// Handle background notification click — opens directly to the incident ticket tracking page (/track/:id)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const targetUrl = event.notification.data?.url || '/happenings'
@@ -68,7 +68,10 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes('/happenings') && 'focus' in client) {
+        if ('focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(targetUrl)
+          }
           return client.focus()
         }
       }
@@ -83,6 +86,7 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_PROXIMITY_ALERT') {
     const { title, body, incidentId, url } = event.data
+    const trackingUrl = incidentId ? `/track/${incidentId}` : (url || '/happenings')
     self.registration.showNotification(title, {
       body,
       icon: '/icon-192.png',
@@ -90,7 +94,7 @@ self.addEventListener('message', (event) => {
       tag: `incident-alert-${incidentId}`,
       renotify: true,
       vibrate: [300, 100, 300, 100, 400],
-      data: { url: url || '/happenings' },
+      data: { url: trackingUrl },
     })
   }
 })
