@@ -194,33 +194,35 @@ export default function PublicHappenings() {
           </button>
         </div>
       ) : (
-        <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 px-3 sm:px-6 py-2.5 backdrop-blur-md shadow-xs">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 sm:gap-3">
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <img src={mainLogo} alt="RescueLink AI" className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg object-cover shadow-xs" />
-              <div>
-                <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-gray-900 leading-tight">RescueLink AI</h1>
-                <p className="text-[11px] font-semibold text-gray-500 hidden sm:block">Public Happenings & Community Risk Telemetry</p>
+        <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 px-2.5 sm:px-6 py-2 sm:py-2.5 backdrop-blur-md shadow-xs">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink">
+              <img src={mainLogo} alt="RescueLink AI" className="h-7 w-7 sm:h-9 sm:w-9 rounded-lg object-cover shadow-xs shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-xs sm:text-base font-extrabold tracking-tight text-gray-900 leading-tight truncate">
+                  RescueLink AI
+                </h1>
+                <p className="text-[11px] font-semibold text-gray-500 hidden md:block">Public Happenings & Community Risk Telemetry</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <PWAInstallWidgetModal />
               <Link
                 to="/report"
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-extrabold text-white bg-red-700 hover:bg-red-800 rounded-lg transition-all shadow-xs"
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-extrabold text-white bg-red-700 hover:bg-red-800 rounded-lg transition-all shadow-xs"
               >
-                <FileText size={14} className="shrink-0" />
-                <span className="hidden sm:inline">Report Incident 🚨</span>
-                <span className="sm:hidden font-black">Report 🚨</span>
+                <FileText size={13} className="shrink-0" />
+                <span className="hidden xs:inline font-extrabold">Report 🚨</span>
+                <span className="xs:hidden font-black">SOS</span>
               </Link>
               <button
                 onClick={() => navigate('/public')}
-                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
               >
-                <ArrowLeft size={13} />
-                <span className="hidden sm:inline">Dashboard</span>
-                <span className="sm:hidden font-black">Back</span>
+                <ArrowLeft size={13} className="shrink-0" />
+                <span className="hidden xs:inline">Dashboard</span>
+                <span className="xs:hidden font-black">Back</span>
               </button>
             </div>
           </div>

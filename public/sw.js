@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rescuelink-pwa-v4'
+const CACHE_NAME = 'rescuelink-pwa-v5'
 const URLS_TO_CACHE = ['/', '/manifest.json', '/main_logo.jpg', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
@@ -26,6 +26,36 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request).then((res) => res || caches.match('/'))
+    })
+  )
+})
+
+// 🚀 Web Push Protocol Listener — Wakes up Service Worker on Android/iOS/Desktop even when app is COMPLETELY CLOSED
+self.addEventListener('push', (event) => {
+  let data = {
+    title: '🚨 EMERGENCY ALERT NEAR YOU',
+    body: 'A new emergency incident has been reported in your sector. Tap to view hazard map.',
+    url: '/happenings',
+    tag: 'emergency-push-alert',
+  }
+
+  if (event.data) {
+    try {
+      data = event.data.json()
+    } catch (e) {
+      data.body = event.data.text()
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      vibrate: [300, 100, 300, 100, 400],
+      tag: data.tag || `incident-push-${Date.now()}`,
+      renotify: true,
+      data: { url: data.url || '/happenings' },
     })
   )
 })

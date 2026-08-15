@@ -33,20 +33,42 @@ export function getSavedUserGPSCoordinates(): { lat: number; lng: number } {
   } catch (e) {
     console.warn('Error reading saved user GPS:', e)
   }
-  // Default to Metro Cebu central coordinates if not located yet
   return { lat: 10.3157, lng: 123.8854 }
 }
 
 export async function requestDeviceNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) return false
-  if (Notification.permission === 'granted') return true
+  if (Notification.permission === 'granted') {
+    subscribeDeviceToWebPush()
+    return true
+  }
 
   try {
     const permission = await Notification.requestPermission()
-    return permission === 'granted'
+    if (permission === 'granted') {
+      subscribeDeviceToWebPush()
+      return true
+    }
+    return false
   } catch (e) {
     console.warn('Error requesting notification permission:', e)
     return false
+  }
+}
+
+export async function subscribeDeviceToWebPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      console.log('📡 Preparing Service Worker Push Subscription for closed-app alerts...')
+    } else {
+      console.log('📡 Service Worker active and ready for background alerts!')
+    }
+  } catch (err) {
+    console.warn('Web Push Subscription error:', err)
   }
 }
 
@@ -55,13 +77,12 @@ export function isNotificationPermissionGranted(): boolean {
 }
 
 /**
- * Triggers native Android/Desktop Notification via Service Worker Registration (Required on Android)
+ * Triggers native Android/Desktop Notification via Service Worker Registration
  */
 async function dispatchNativeOSNotification(title: string, options: NotificationOptions & { url?: string }): Promise<boolean> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
 
   try {
-    // 1. Android Chrome & PWA: Requires serviceWorker.ready showNotification
     if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.ready
       if (reg && reg.showNotification) {
@@ -76,7 +97,6 @@ async function dispatchNativeOSNotification(title: string, options: Notification
       }
     }
 
-    // 2. Desktop Fallback
     new Notification(title, {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
@@ -105,7 +125,6 @@ export async function checkAndSendProximityNotification(
 
   if (distKm > maxRadiusKm) return false
 
-  // Avoid duplicate notifications for the same incident ID
   const notifiedRaw = localStorage.getItem(NOTIFIED_INCIDENTS_KEY) || '[]'
   const notifiedList: string[] = JSON.parse(notifiedRaw)
   if (notifiedList.includes(incident.id)) return false
