@@ -64,7 +64,7 @@ export default function MonitoringMap() {
             to="/happenings"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg transition-colors shadow-2xs"
           >
-            <Radio size={13} className="text-purple-700 animate-pulse" /> Community Risk & Happenings 🛡️
+            <Radio size={13} className="text-purple-700 animate-pulse" /> Live Incident Feed 🛡️
           </Link>
           <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded-md">
             <span className="size-2 rounded-full bg-green-500 animate-pulse" />

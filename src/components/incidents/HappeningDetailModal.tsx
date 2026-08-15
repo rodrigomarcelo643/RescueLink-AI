@@ -43,7 +43,7 @@ export default function HappeningDetailModal({ open, onClose, item, userCoords }
 
   const title = incidentObj
     ? `${incidentObj.disaster_type.toUpperCase()} Emergency`
-    : happeningObj?.title ?? 'Disaster Happening Detail'
+    : happeningObj?.title ?? 'Live Incident Detail'
 
   const locationText = incidentObj ? incidentObj.location_text : happeningObj?.locationText ?? 'Unknown Location'
   const lat = incidentObj ? incidentObj.latitude : happeningObj?.latitude ?? null

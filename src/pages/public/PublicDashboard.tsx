@@ -148,11 +148,11 @@ export default function PublicDashboard() {
             <Link
               to="/happenings"
               className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg transition-all shadow-2xs shrink-0"
-              title="Community Risk & Happenings"
+              title="Live Incident Feed"
             >
               <Radio size={14} className="text-purple-700 animate-pulse shrink-0" />
-              <span className="hidden md:inline">Community Risk & Happenings 🛡️</span>
-              <span className="md:hidden font-black">Happenings</span>
+              <span className="hidden md:inline">Live Incident Feed 🛡️</span>
+              <span className="md:hidden font-black">Incidents</span>
             </Link>
             <Link
               to="/report"
@@ -177,7 +177,7 @@ export default function PublicDashboard() {
       {/* Main Full-Width Container */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-6">
 
-        {/* AI Risk Forecast & Public Happenings Banner */}
+        {/* AI Risk Forecast & Live Incident Feed Banner */}
         <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-900 via-purple-950 to-gray-900 text-white border border-purple-800/40 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="p-2.5 bg-purple-800/60 rounded-xl border border-purple-500/30 shrink-0">
@@ -193,7 +193,7 @@ export default function PublicDashboard() {
                 </span>
               </div>
               <h3 className="text-sm sm:text-base font-extrabold mt-1 text-white">
-                Public Happenings & Community Risk Telemetry
+                Live Incident Feed & Community Risk Telemetry
               </h3>
               <p className="text-xs text-purple-200 max-w-2xl mt-0.5">
                 Check neighborhood disaster risk scores, nearest accident proximity patterns, and active map alerts tailored for your area.
@@ -205,7 +205,7 @@ export default function PublicDashboard() {
             to="/happenings"
             className="px-4 py-2 text-xs font-extrabold text-purple-950 bg-white hover:bg-purple-50 rounded-xl transition-all shadow-xs shrink-0 flex items-center gap-1.5"
           >
-            Open Happenings Hub →
+            Open Live Incident Feed →
           </Link>
         </div>
 

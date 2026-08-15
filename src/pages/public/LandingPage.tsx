@@ -110,13 +110,13 @@ export default function LandingPage() {
       linkText: 'Report Incident',
     },
     {
-      title: 'Community Risk Hub',
+      title: 'Live Incident Feed',
       subtitle: 'Predictive Telemetry',
       desc: 'Inspect disaster risk scores, map alerts, & nearest accidents.',
       icon: ShieldAlert,
       color: 'from-purple-600 to-indigo-700',
       link: '/happenings',
-      linkText: 'Community Risk',
+      linkText: 'Live Incidents',
     },
     {
       title: 'LGU Command Center',
@@ -176,7 +176,7 @@ export default function LandingPage() {
               to="/happenings"
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-200 rounded-lg transition-all"
             >
-              <Radio size={13} className="text-purple-700 animate-pulse" /> Community Risk
+              <Radio size={13} className="text-purple-700 animate-pulse" /> Live Incidents
             </Link>
             <Link
               to="/report"
@@ -265,7 +265,7 @@ export default function LandingPage() {
                   to="/happenings"
                   className="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-purple-900 hover:bg-purple-950 rounded-xl shadow-md transition-all cursor-pointer"
                 >
-                  <Radio size={15} className="text-purple-300 animate-pulse" /> Community Risk Hub
+                  <Radio size={15} className="text-purple-300 animate-pulse" /> Live Incident Feed
                 </Link>
                 <Link
                   to="/report"

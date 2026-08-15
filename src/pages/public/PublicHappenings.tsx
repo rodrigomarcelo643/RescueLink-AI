@@ -204,7 +204,7 @@ export default function PublicHappenings() {
                 <h1 className="text-xs sm:text-base font-extrabold tracking-tight text-gray-900 leading-tight truncate">
                   RescueLink AI
                 </h1>
-                <p className="text-[11px] font-semibold text-gray-500 hidden md:block">Public Happenings & Community Risk Telemetry</p>
+                <p className="text-[11px] font-semibold text-gray-500 hidden md:block">Live Incident Feed & Community Risk Telemetry</p>
               </div>
             </div>
 
@@ -232,11 +232,11 @@ export default function PublicHappenings() {
       )}
 
       {/* Main Container */}
-      <div className="mx-auto max-w-7xl px-2.5 sm:px-6 lg:px-8 pt-4 sm:pt-6 flex flex-col gap-4 sm:gap-6">
+      <div className="mx-auto max-w-7xl px-2.5 sm:px-6 pt-3 sm:pt-6 flex flex-col gap-4 sm:gap-6">
 
-        {/* Hero Title & Live Indicator */}
-        <div className="bg-gradient-to-r from-red-900 via-purple-950 to-gray-900 text-white rounded-2xl p-4 sm:p-6 shadow-md border border-red-800/40 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none hidden sm:block">
+        {/* Header Hero Banner */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-950 via-purple-950 to-slate-900 p-4 sm:p-6 text-white shadow-xl border border-purple-900/50">
+          <div className="absolute -right-10 -bottom-10 opacity-10 text-white pointer-events-none">
             <Radio size={160} />
           </div>
 
@@ -249,7 +249,7 @@ export default function PublicHappenings() {
                 <span className="text-[11px] sm:text-xs text-red-200 font-semibold">Updated Seconds Ago</span>
               </div>
               <h2 className="text-lg sm:text-2xl font-black tracking-tight text-white leading-tight">
-                Public Happenings & Community Risk Hub
+                Live Incident Feed & Community Risk Hub
               </h2>
               <p className="mt-1 text-xs text-gray-200 max-w-2xl font-medium leading-relaxed">
                 Real-time neighborhood event telemetry, community risk assessments, and nearest accident tracking to keep residents safe and informed.

@@ -35,7 +35,7 @@
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "any",
   "scope": "/",
-  "description": "Real-time disaster risk telemetry and public happenings app.",
+  "description": "Real-time disaster risk telemetry and live incident feed app.",
   "shortcuts": [
     {
       "name": "Public Dashboard 📊",
@@ -45,8 +45,8 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Public Happenings Hub 🚨",
-      "short_name": "Happenings",
+      "name": "Live Incident Feed 🚨",
+      "short_name": "Live Feed",
       "description": "View live community risk telemetry and map alerts",
       "url": "/happenings",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
