@@ -18,6 +18,8 @@ import mainLogo from '@/assets/logo/main_logo.jpg'
 import {
   sendSampleDeviceNotification,
   checkAndSendProximityNotification,
+  saveUserGPSCoordinates,
+  initLiveProximityPushListener,
 } from '@/services/deviceNotificationService'
 import {
   AlertTriangle, Radio, MapPin, ArrowLeft, FileText,
@@ -92,11 +94,14 @@ export default function PublicHappenings() {
 
   // Auto-detect user's current location on mount to center map & calculate local risk
   useEffect(() => {
+    initLiveProximityPushListener()
+
     if (navigator.geolocation) {
       setLocating(true)
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          saveUserGPSCoordinates(pos.coords.latitude, pos.coords.longitude)
           setSelectedCoords(coords)
           setLocationName('Your Current Proximity')
           fetchAllData(coords)
@@ -137,6 +142,7 @@ export default function PublicHappenings() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        saveUserGPSCoordinates(pos.coords.latitude, pos.coords.longitude)
         setSelectedCoords(coords)
         setLocationName('Your Current Proximity')
         fetchAllData(coords)
@@ -148,6 +154,7 @@ export default function PublicHappenings() {
 
   const handleSelectCoordinates = (lat: number, lng: number) => {
     const coords = { lat, lng }
+    saveUserGPSCoordinates(lat, lng)
     setSelectedCoords(coords)
     setLocationName(`Selected Spot (${lat.toFixed(3)}, ${lng.toFixed(3)})`)
     const pred = calculateAIPrediction(lat, lng, incidents, `Selected Spot (${lat.toFixed(3)}, ${lng.toFixed(3)})`)
