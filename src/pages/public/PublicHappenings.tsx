@@ -185,7 +185,7 @@ export default function PublicHappenings() {
           <div className="flex items-center gap-2 min-w-0">
             <img src={mainLogo} alt="RescueLink AI" className="h-6 w-6 sm:h-7 sm:w-7 rounded-md object-cover shrink-0" />
             <span className="text-xs font-black tracking-tight text-white truncate">
-              RescueLink AI <span className="hidden sm:inline">— Happenings Widget</span>
+              RescueLink AI <span className="hidden sm:inline">— Live Incident Widget</span>
             </span>
           </div>
           <button

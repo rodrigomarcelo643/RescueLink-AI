@@ -28,7 +28,7 @@
       "purpose": "maskable"
     }
   ],
-  "start_url": "/",
+  "start_url": "/happenings?mode=widget",
   "background_color": "#0f172a",
   "theme_color": "#581c87",
   "display": "standalone",
@@ -38,6 +38,13 @@
   "description": "Real-time disaster risk telemetry and live incident feed app.",
   "shortcuts": [
     {
+      "name": "Live Incident Widget 🚨",
+      "short_name": "Widget",
+      "description": "Open RescueLink AI Standalone Telemetry Widget",
+      "url": "/happenings?mode=widget",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
       "name": "Public Dashboard 📊",
       "short_name": "Dashboard",
       "description": "Open RescueLink AI Public Disaster Dashboard",
@@ -45,24 +52,10 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Live Incident Feed 🚨",
-      "short_name": "Live Feed",
-      "description": "View live community risk telemetry and map alerts",
-      "url": "/happenings",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
       "name": "Report SOS Incident 🆘",
       "short_name": "Report SOS",
       "description": "File instant citizen disaster SOS emergency report",
       "url": "/report",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
-      "name": "RescueLink AI Main App 🚀",
-      "short_name": "RescueLink AI",
-      "description": "Open RescueLink AI Standalone Disaster Portal",
-      "url": "/",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

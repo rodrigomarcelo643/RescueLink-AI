@@ -11,13 +11,43 @@ import mainLogo from '/main_logo.jpg'
 
 export default function FloatingIncidentWidget() {
   const location = useLocation()
-  const [isOpen, setIsOpen] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
+  
+  // Show widget open by default on desktop screens (>= 640px width)
+  const [isOpen, setIsOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rescuelink_floating_widget_open')
+      if (saved !== null) return saved === 'true'
+    } catch (e) {}
+    return window.innerWidth >= 640
+  })
+
+  const [isMinimized, setIsMinimized] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rescuelink_floating_widget_minimized')
+      if (saved !== null) return saved === 'true'
+    } catch (e) {}
+    return false
+  })
+
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Do not render widget if on widget mode window to prevent duplication
-  const isWidgetModeWindow = new URLSearchParams(location.search).get('mode') === 'widget'
+  const toggleOpen = (val: boolean) => {
+    setIsOpen(val)
+    try { localStorage.setItem('rescuelink_floating_widget_open', String(val)) } catch (e) {}
+  }
+
+  const toggleMinimized = (val: boolean) => {
+    setIsMinimized(val)
+    try { localStorage.setItem('rescuelink_floating_widget_minimized', String(val)) } catch (e) {}
+  }
+
+  // Do not render floating chatbot pill if running in widget window mode or installed standalone PWA mode
+  const isWidgetModeWindow =
+    new URLSearchParams(location.search).get('mode') === 'widget' ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    (navigator as any).standalone === true
 
   useEffect(() => {
     let active = true
@@ -67,8 +97,8 @@ export default function FloatingIncidentWidget() {
           >
             <button
               onClick={() => {
-                setIsOpen(true)
-                setIsMinimized(false)
+                toggleOpen(true)
+                toggleMinimized(false)
               }}
               className="flex items-center gap-2.5 px-3.5 py-2.5 bg-gradient-to-r from-slate-950 via-purple-950 to-red-950 text-white rounded-full shadow-2xl border border-purple-500/50 hover:border-purple-400 hover:scale-105 transition-all cursor-pointer group"
               title="Click to launch Floating Incident Telemetry Widget"
@@ -109,7 +139,7 @@ export default function FloatingIncidentWidget() {
                 <Move size={13} className="text-purple-400 shrink-0 opacity-70" />
                 <img src={mainLogo} alt="RescueLink AI" className="h-5 w-5 rounded object-cover shrink-0" />
                 <span className="text-xs font-black tracking-tight text-white truncate">
-                  RescueLink AI Widget
+                  RescueLink AI — Live Incident Widget
                 </span>
                 <span className="px-1.5 py-0.5 text-[9px] font-black uppercase bg-red-600/90 text-white rounded shrink-0">
                   {activeCount} Live
@@ -127,7 +157,7 @@ export default function FloatingIncidentWidget() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsMinimized((prev) => !prev)}
+                  onClick={() => toggleMinimized(!isMinimized)}
                   className="p-1 text-purple-300 hover:text-white rounded hover:bg-purple-900/50 transition-colors"
                   title={isMinimized ? 'Expand Widget' : 'Minimize Widget'}
                 >
@@ -135,7 +165,7 @@ export default function FloatingIncidentWidget() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => toggleOpen(false)}
                   className="p-1 text-purple-300 hover:text-red-400 rounded hover:bg-purple-900/50 transition-colors"
                   title="Close Widget"
                 >
@@ -220,7 +250,7 @@ export default function FloatingIncidentWidget() {
                     to="/happenings"
                     className="px-3 py-2 text-center text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-xl transition-all flex items-center justify-center gap-1"
                   >
-                    <Radio size={12} className="text-purple-700" /> Open Feed 📡
+                    <Radio size={12} className="text-purple-700" /> Live Incidents 📡
                   </Link>
                 </div>
               </div>
