@@ -5,9 +5,10 @@ import type { Incident } from '@/types/incident'
 import type { ResponseAgency } from '@/types/responseAgency'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
 import { getResponseAgencies, CEBU_RESPONSE_AGENCIES_SEED } from '@/services/responseAgencies.service'
-import { assignAgencyToIncident } from '@/services/incidents.service'
+import { getOrganizationSettings, type OrganizationSettings } from '@/services/settings.service'
+import { useAuth } from '@/context/AuthContext'
 import {
-  X, Sparkles, Building2, Phone,
+  X, Sparkles, Building2, Phone, MapPin,
   Navigation, Check, AlertCircle
 } from 'lucide-react'
 
@@ -22,10 +23,18 @@ export default function AgencyAssignModal({
   onClose,
   onAssign,
 }: AgencyAssignModalProps) {
+  const { user, profile } = useAuth()
+  const [lguOrg, setLguOrg] = useState<OrganizationSettings | null>(null)
   const [aiMatch, setAiMatch] = useState<AgencyMatchResult | null>(null)
   const [agenciesList, setAgenciesList] = useState<ResponseAgency[]>(CEBU_RESPONSE_AGENCIES_SEED)
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>('')
   const [loadingAi, setLoadingAi] = useState(true)
+
+  useEffect(() => {
+    getOrganizationSettings(user?.id).then((org) => {
+      setLguOrg(org)
+    })
+  }, [user?.id])
 
   useEffect(() => {
     if (!incident) return
@@ -59,6 +68,10 @@ export default function AgencyAssignModal({
 
   if (!incident) return null
 
+  const lguDisplayName = lguOrg?.lgu_name || (profile?.municipality ? `LGU ${profile.municipality} Command Center` : 'LGU Emergency Command Center')
+  const lguAddress = lguOrg?.office_address || profile?.municipality || 'LGU Headquarters'
+  const lguHotline = lguOrg?.emergency_hotline || profile?.phone || 'Hotline 911'
+
   const allAgencies = agenciesList.length > 0 ? agenciesList : CEBU_RESPONSE_AGENCIES_SEED
   const selectedAgency =
     allAgencies.find((a) => a.id === selectedAgencyId) ||
@@ -67,6 +80,7 @@ export default function AgencyAssignModal({
 
   const handleConfirm = async () => {
     if (selectedAgency) {
+      const { assignAgencyToIncident } = await import('@/services/incidents.service')
       await assignAgencyToIncident(incident.id, selectedAgency.id, selectedAgency.name, selectedAgency.username || undefined)
       onAssign(incident.id, selectedAgency)
       onClose()
@@ -110,6 +124,34 @@ export default function AgencyAssignModal({
           </div>
 
           <div className="flex flex-col gap-5 p-6">
+
+            {/* Requesting LGU Command Center Info Badge */}
+            <div className="p-3.5 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 rounded-xl border border-purple-700/60 text-white shadow-sm flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="size-8 rounded-lg bg-purple-700/60 border border-purple-500 flex items-center justify-center text-purple-200 font-extrabold shrink-0 mt-0.5">
+                  <Building2 size={16} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 block">
+                    Requesting LGU Office
+                  </span>
+                  <h4 className="text-xs font-black text-white mt-0.5">
+                    {lguDisplayName}
+                  </h4>
+                  <p className="text-[11px] text-purple-200 font-medium mt-0.5 flex items-center gap-1">
+                    <MapPin size={11} className="text-red-400 shrink-0" />
+                    <span>Office Address: {lguAddress}</span>
+                  </p>
+                  <p className="text-[11px] text-purple-200 font-medium flex items-center gap-1">
+                    <Phone size={11} className="text-emerald-400 shrink-0" />
+                    <span>Hotline: {lguHotline}</span>
+                  </p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-purple-600/80 text-white rounded shrink-0">
+                Verified LGU
+              </span>
+            </div>
 
             {/* 🤖 AI Best Route Suggestion Box (Hidden if agency is already assigned) */}
             {!incident.assigned_agency_name && !incident.assigned_agency_id && (

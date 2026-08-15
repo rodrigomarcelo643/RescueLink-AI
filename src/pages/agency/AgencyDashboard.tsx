@@ -11,7 +11,7 @@ import { getResponseAgencies } from '@/services/responseAgencies.service'
 import { supabase } from '@/services/supabase'
 import type { Incident } from '@/types/incident'
 import {
-  ShieldCheck, MapPin, CheckCircle,
+  ShieldCheck, MapPin, CheckCircle, Building2,
   Clock, Navigation, RefreshCw, Eye, Sparkles, Filter, ChevronRight,
   X, Zap
 } from 'lucide-react'
@@ -499,6 +499,17 @@ export default function AgencyDashboard() {
                       {new Date(inc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
+                </div>
+
+                {/* 🏢 Requesting LGU Command Center Badge */}
+                <div className="px-3 py-2 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-purple-100 rounded-md border border-purple-800 flex items-center justify-between text-xs font-bold flex-wrap gap-2 shadow-xs">
+                  <span className="flex items-center gap-1.5 text-purple-200">
+                    <Building2 size={13} className="text-purple-400 shrink-0" />
+                    <span>Requesting Office: <strong className="text-white font-extrabold">{inc.assigned_agency_name ? `LGU Command Center (Assigned to ${agency?.name || 'Your Unit'})` : 'LGU Emergency Command Center'}</strong></span>
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 bg-purple-900/80 px-2 py-0.5 rounded border border-purple-700">
+                    LGU Dispatch Request
+                  </span>
                 </div>
 
                 {/* AI Nearest Station Badge */}

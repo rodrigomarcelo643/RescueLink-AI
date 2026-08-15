@@ -291,7 +291,7 @@ function NotificationsTab() {
 // ── Organization Tab ─────────────────────────────────────────────────────────
 function OrganizationTab() {
   const { user, profile } = useAuth()
-  const [lguName, setLguName] = useState('LGU ' + (profile?.municipality ?? ''))
+  const [lguName, setLguName] = useState('')
   const [hotline, setHotline] = useState('')
   const [address, setAddress] = useState('')
   const [fbPage, setFbPage] = useState('')
@@ -300,14 +300,20 @@ function OrganizationTab() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
-    getOrganizationSettings(user?.id).then((settings) => {
-      if (settings.lgu_name) setLguName(settings.lgu_name)
-      if (settings.emergency_hotline) setHotline(settings.emergency_hotline)
-      if (settings.office_address) setAddress(settings.office_address)
-      if (settings.facebook_page_url) setFbPage(settings.facebook_page_url)
-      setFetching(false)
-    })
-  }, [user?.id])
+    let active = true
+    const loadSettings = async () => {
+      const settings = await getOrganizationSettings(user?.id)
+      if (active) {
+        setLguName(settings.lgu_name || (profile?.municipality ? 'LGU ' + profile.municipality : 'LGU Command Center'))
+        setHotline(settings.emergency_hotline || '')
+        setAddress(settings.office_address || '')
+        setFbPage(settings.facebook_page_url || '')
+        setFetching(false)
+      }
+    }
+    loadSettings()
+    return () => { active = false }
+  }, [user?.id, profile?.municipality])
 
   const handleSave = async () => {
     if (!user) return

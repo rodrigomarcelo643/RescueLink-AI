@@ -9,6 +9,8 @@ import { SEVERITY_COLOR } from '@/constants/incidentStatus'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
 import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
 import type { ResponseAgency } from '@/types/responseAgency'
+import { getOrganizationSettings, type OrganizationSettings } from '@/services/settings.service'
+import { useAuth } from '@/context/AuthContext'
 import { useModal } from '@/context/ModalContext'
 import { deleteIncident, assignAgencyToIncident } from '@/services/incidents.service'
 import { removeIncident } from '@/redux/slices/incidentSlice'
@@ -51,11 +53,17 @@ export default function IncidentDetailsModal({
 }: IncidentDetailsModalProps) {
   const { openModal } = useModal()
   const dispatch = useDispatch()
+  const { user, profile } = useAuth()
+  const [lguOrg, setLguOrg] = useState<OrganizationSettings | null>(null)
   const [agencyMatch, setAgencyMatch] = useState<AgencyMatchResult | null>(null)
   const [manualAgency, setManualAgency] = useState<ResponseAgency | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [dispatched, setDispatched] = useState(false)
   const [activeTab, setActiveTab] = useState<'details' | 'map'>(initialTab)
+
+  useEffect(() => {
+    getOrganizationSettings(user?.id).then((org) => setLguOrg(org))
+  }, [user?.id])
 
   useEffect(() => {
     if (!incident) return
@@ -71,6 +79,10 @@ export default function IncidentDetailsModal({
   }, [incident, onClose])
 
   if (!incident) return null
+
+  const lguDisplayName = lguOrg?.lgu_name || (profile?.municipality ? `LGU ${profile.municipality} Command Center` : 'LGU Emergency Command Center')
+  const lguAddress = lguOrg?.office_address || profile?.municipality || 'LGU Command Headquarters'
+  const lguHotline = lguOrg?.emergency_hotline || profile?.phone || 'Hotline 911'
 
   const activeAgencyName = incident.assigned_agency_name || manualAgency?.name || agencyMatch?.agency.name || 'Response Agency Station'
   const activeAgencyContact = manualAgency?.contacts?.[0]?.value || agencyMatch?.agency.contacts?.[0]?.value || '911 Emergency'
@@ -252,6 +264,36 @@ export default function IncidentDetailsModal({
                     </p>
                   </div>
                 )}
+
+                {/* 🏢 Requesting LGU Command Center Info Card */}
+                <div className="rounded-xl bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 p-4 border border-purple-700/60 text-white shadow-sm flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-purple-700/60 text-purple-200 font-extrabold shrink-0 border border-purple-500">
+                      <Building2 size={18} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 block">
+                        Requesting LGU Office
+                      </span>
+                      <h4 className="text-sm font-black text-white mt-0.5">
+                        {lguDisplayName}
+                      </h4>
+                      <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-purple-200">
+                        <span className="flex items-center gap-1 font-medium">
+                          <MapPin size={11} className="text-red-400 shrink-0" />
+                          Address: {lguAddress}
+                        </span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <Phone size={11} className="text-emerald-400 shrink-0" />
+                          Hotline: {lguHotline}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-purple-600/80 text-white rounded shrink-0">
+                    Verified LGU
+                  </span>
+                </div>
 
                 {/* Assigned Agency Card */}
                 <div className="rounded-lg bg-blue-50/80 p-4 border border-blue-200 flex flex-col gap-3">
