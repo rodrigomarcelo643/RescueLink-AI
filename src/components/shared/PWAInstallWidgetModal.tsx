@@ -33,16 +33,21 @@ export default function PWAInstallWidgetModal() {
           if (apps && apps.length > 0) {
             setIsAppInstalled(true)
             localStorage.setItem('rescuelink_pwa_installed', 'true')
+          } else {
+            setIsAppInstalled(false)
+            localStorage.removeItem('rescuelink_pwa_installed')
           }
         })
         .catch(() => {})
     }
 
-    // 4. Capture browser native install prompt
+    // 4. Capture browser native install prompt (Fires ONLY when app is NOT installed)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       ;(window as any).deferredPWAInstallPrompt = e
       setDeferredPrompt(e)
+      setIsAppInstalled(false)
+      localStorage.removeItem('rescuelink_pwa_installed')
     }
 
     // 5. Capture appinstalled event when user completes installation

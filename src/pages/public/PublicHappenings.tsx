@@ -181,14 +181,16 @@ export default function PublicHappenings() {
     <div className="min-h-screen bg-gray-50/50 font-sans pb-16">
       {/* Sticky Navigation Header */}
       {isWidgetMode ? (
-        <div className="sticky top-0 z-30 border-b border-purple-900 bg-purple-950 px-4 py-2.5 text-white flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-2">
-            <img src={mainLogo} alt="RescueLink AI" className="h-7 w-7 rounded-md object-cover" />
-            <span className="text-xs font-black tracking-tight text-white">RescueLink AI — Happenings Widget</span>
+        <div className="sticky top-0 z-30 border-b border-purple-900 bg-purple-950 px-2.5 sm:px-4 py-2 text-white flex items-center justify-between gap-2 shadow-md">
+          <div className="flex items-center gap-2 min-w-0">
+            <img src={mainLogo} alt="RescueLink AI" className="h-6 w-6 sm:h-7 sm:w-7 rounded-md object-cover shrink-0" />
+            <span className="text-xs font-black tracking-tight text-white truncate">
+              RescueLink AI <span className="hidden sm:inline">— Happenings Widget</span>
+            </span>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="px-2.5 py-1 text-[10px] font-extrabold bg-purple-800 hover:bg-purple-700 text-amber-300 rounded-md transition-colors cursor-pointer"
+            className="px-2 py-1 text-[10px] font-extrabold bg-purple-800 hover:bg-purple-700 text-amber-300 rounded-md transition-colors cursor-pointer shrink-0"
           >
             Refresh 🔄
           </button>
