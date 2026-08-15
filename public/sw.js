@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rescuelink-pwa-v6'
+const CACHE_NAME = 'rescuelink-pwa-v7'
 const URLS_TO_CACHE = ['/', '/manifest.json', '/main_logo.jpg', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
@@ -35,7 +35,7 @@ self.addEventListener('push', (event) => {
   let data = {
     title: '🚨 EMERGENCY ALERT NEAR YOU',
     body: 'A new emergency incident has been reported in your sector. Tap to view ticket tracking & rescue status.',
-    url: '/happenings',
+    url: '/near-incident-live-monitoring',
     tag: 'emergency-push-alert',
   }
 
@@ -55,7 +55,7 @@ self.addEventListener('push', (event) => {
       vibrate: [300, 100, 300, 100, 400],
       tag: data.tag || `incident-push-${Date.now()}`,
       renotify: true,
-      data: { url: data.url || '/happenings' },
+      data: { url: data.url || '/near-incident-live-monitoring' },
     })
   )
 })
@@ -63,7 +63,7 @@ self.addEventListener('push', (event) => {
 // Handle background notification click — opens directly to the incident ticket tracking page (/track/:id)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url || '/happenings'
+  const targetUrl = event.notification.data?.url || '/near-incident-live-monitoring'
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -86,7 +86,7 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_PROXIMITY_ALERT') {
     const { title, body, incidentId, url } = event.data
-    const trackingUrl = incidentId ? `/track/${incidentId}` : (url || '/happenings')
+    const trackingUrl = incidentId ? `/track/${incidentId}` : (url || '/near-incident-live-monitoring')
     self.registration.showNotification(title, {
       body,
       icon: '/icon-192.png',

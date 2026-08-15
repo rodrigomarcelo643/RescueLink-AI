@@ -28,7 +28,7 @@ serve(async (req) => {
             body: JSON.stringify({
               title,
               body,
-              url: '/happenings',
+              url: '/near-incident-live-monitoring',
               tag: `incident-${record.id}`,
             }),
           })

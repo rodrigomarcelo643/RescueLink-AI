@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Radio, X, Maximize2, Minimize2, AlertTriangle, MapPin,
+  Radio, X, Maximize2, Minimize2, MapPin,
   ExternalLink, FileText, ChevronRight, ShieldAlert, Sparkles, Move
 } from 'lucide-react'
 import { getIncidents } from '@/services/incidents.service'
@@ -74,7 +74,7 @@ export default function FloatingIncidentWidget() {
 
   const handlePopDesktopWindow = (e: React.MouseEvent) => {
     e.stopPropagation()
-    const appUrl = `${window.location.origin}/happenings?mode=widget`
+    const appUrl = `${window.location.origin}/near-incident-live-monitoring?mode=widget`
     const windowFeatures = 'width=440,height=750,left=150,top=80,resizable=yes,scrollbars=yes,status=no,location=no'
     const popWin = window.open(appUrl, 'RescueLinkDesktopWidget', windowFeatures)
     if (popWin) popWin.focus()
@@ -187,7 +187,7 @@ export default function FloatingIncidentWidget() {
                     </div>
                   </div>
                   <Link
-                    to="/happenings"
+                    to="/near-incident-live-monitoring"
                     className="px-2 py-1 text-[10px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-md transition-all shrink-0 flex items-center gap-1"
                   >
                     Feed <ExternalLink size={10} />
@@ -247,7 +247,7 @@ export default function FloatingIncidentWidget() {
                     <FileText size={12} /> Report SOS 🚨
                   </Link>
                   <Link
-                    to="/happenings"
+                    to="/near-incident-live-monitoring"
                     className="px-3 py-2 text-center text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-xl transition-all flex items-center justify-center gap-1"
                   >
                     <Radio size={12} className="text-purple-700" /> Live Incidents 📡

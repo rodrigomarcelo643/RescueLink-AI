@@ -129,7 +129,7 @@ async function dispatchNativeOSNotification(title: string, options: Notification
           icon: '/icon-192.png',
           badge: '/icon-192.png',
           vibrate: [300, 100, 300, 100, 400],
-          data: { url: options.url || '/happenings' },
+          data: { url: options.url || '/near-incident-live-monitoring' },
           ...options,
         } as any)
         dispatched = true
@@ -176,7 +176,7 @@ export async function checkAndSendProximityNotification(
   const disasterType = (incident.disaster_type || incident.type || 'Emergency').toUpperCase()
   const severity = (incident.severity || 'high').toUpperCase()
   const locationText = incident.location_text || incident.address || 'Nearby Sector'
-  const trackingUrl = incidentId ? `/track/${incidentId}` : '/happenings'
+  const trackingUrl = incidentId ? `/track/${incidentId}` : '/near-incident-live-monitoring'
 
   const title = `🚨 EMERGENCY ALERT (${severity}): ${disasterType}`
   const body = `📍 ${distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`} away: ${locationText}. Tap to track live response & evacuation route.`
@@ -201,7 +201,7 @@ export async function sendSampleDeviceNotification(): Promise<boolean> {
   return dispatchNativeOSNotification(title, {
     body,
     tag: `test-sample-${Date.now()}`,
-    url: '/happenings',
+    url: '/near-incident-live-monitoring',
   })
 }
 

@@ -146,7 +146,7 @@ export default function PublicDashboard() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <PWAInstallWidgetModal />
             <Link
-              to="/happenings"
+              to="/near-incident-live-monitoring"
               className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg transition-all shadow-2xs shrink-0"
               title="Live Incident Feed"
             >
@@ -202,7 +202,7 @@ export default function PublicDashboard() {
           </div>
 
           <Link
-            to="/happenings"
+            to="/near-incident-live-monitoring"
             className="px-4 py-2 text-xs font-extrabold text-purple-950 bg-white hover:bg-purple-50 rounded-xl transition-all shadow-xs shrink-0 flex items-center gap-1.5"
           >
             Open Live Incident Feed →

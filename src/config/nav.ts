@@ -18,7 +18,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/incidents',   label: 'Incidents',        icon: AlertTriangle,  roles: ['lgu'], group: 'Operations'  },
   { to: '/fb-monitor',  label: 'FB Monitoring',    icon: MessageSquare,  roles: ['lgu'], group: 'Monitoring'  },
   { to: '/map',          label: 'Monitoring Map',   icon: Map,            roles: ['lgu'], group: 'Monitoring'  },
-  { to: '/happenings',   label: 'Live Incident Feed', icon: Sparkles,    roles: ['lgu'], group: 'Monitoring'  },
+  { to: '/near-incident-live-monitoring', label: 'Live Incident Feed', icon: Sparkles,    roles: ['lgu'], group: 'Monitoring'  },
   { to: '/donations',   label: 'Donations',        icon: Heart,          roles: ['lgu'], group: 'Operations'  },
   { to: '/volunteers',  label: 'Volunteers',       icon: Users,          roles: ['lgu'], group: 'Operations'  },
   { to: '/evacuation-centers', label: 'Evacuation Centers', icon: Building2, roles: ['lgu'], group: 'Operations' },

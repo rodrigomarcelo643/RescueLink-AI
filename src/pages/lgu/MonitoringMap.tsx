@@ -61,7 +61,7 @@ export default function MonitoringMap() {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            to="/happenings"
+            to="/near-incident-live-monitoring"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg transition-colors shadow-2xs"
           >
             <Radio size={13} className="text-purple-700 animate-pulse" /> Live Incident Feed 🛡️

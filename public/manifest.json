@@ -28,7 +28,7 @@
       "purpose": "maskable"
     }
   ],
-  "start_url": "/happenings?mode=widget",
+  "start_url": "/near-incident-live-monitoring?mode=widget",
   "background_color": "#0f172a",
   "theme_color": "#581c87",
   "display": "standalone",
@@ -41,7 +41,7 @@
       "name": "Live Incident Widget 🚨",
       "short_name": "Widget",
       "description": "Open RescueLink AI Standalone Telemetry Widget",
-      "url": "/happenings?mode=widget",
+      "url": "/near-incident-live-monitoring?mode=widget",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {

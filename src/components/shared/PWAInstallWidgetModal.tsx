@@ -68,7 +68,7 @@ export default function PWAInstallWidgetModal() {
   }, [])
 
   const handleOpenApp = () => {
-    const appUrl = `${window.location.origin}/happenings?mode=widget`
+    const appUrl = `${window.location.origin}/near-incident-live-monitoring?mode=widget`
     const windowFeatures = 'width=480,height=800,left=200,top=100,resizable=yes,scrollbars=yes,status=no,location=no'
     const newWindow = window.open(appUrl, 'RescueLinkPWAApp', windowFeatures)
     if (newWindow) {
