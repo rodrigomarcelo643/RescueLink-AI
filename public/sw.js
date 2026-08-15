@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rescuelink-pwa-v7'
+const CACHE_NAME = 'rescuelink-pwa-v8'
 const URLS_TO_CACHE = ['/', '/manifest.json', '/main_logo.jpg', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {

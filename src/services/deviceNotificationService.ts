@@ -42,6 +42,10 @@ export async function requestDeviceNotificationPermission(): Promise<boolean> {
     subscribeDeviceToWebPush()
     return true
   }
+  if (Notification.permission === 'denied') {
+    // Silently return false if already denied/blocked to prevent Chrome warnings
+    return false
+  }
 
   try {
     const permission = await Notification.requestPermission()
@@ -51,7 +55,6 @@ export async function requestDeviceNotificationPermission(): Promise<boolean> {
     }
     return false
   } catch (e) {
-    console.warn('Error requesting notification permission:', e)
     return false
   }
 }

@@ -6,7 +6,7 @@ import {
   FileText, Globe, Lock, Navigation, Zap,
   CheckCircle2, Cpu, Radio, Eye, Heart, MessageSquare, Phone, ShieldAlert,
   Menu, X, Building2, Search, MapPin, ShieldCheck, Waves,
-  Wind, Flame, Mountain, Activity, ExternalLink, Compass
+  Wind, Flame, Mountain, Activity, ExternalLink, Compass, ChevronRight
 } from 'lucide-react'
 
 const SIMULATED_EVACUATION_CENTERS = [
@@ -176,7 +176,7 @@ export default function LandingPage() {
               to="/near-incident-live-monitoring"
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-200 rounded-lg transition-all"
             >
-              <Radio size={13} className="text-purple-700 animate-pulse" /> Live Incidents
+              <Radio size={13} className="text-purple-700 animate-pulse" /> Live Incident Feed
             </Link>
             <Link
               to="/report"
@@ -207,22 +207,54 @@ export default function LandingPage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="border-b border-gray-200 bg-white px-4 py-4 md:hidden shadow-lg overflow-hidden flex flex-col gap-3"
+              className="border-b border-gray-200 bg-white px-4 py-4 md:hidden shadow-xl overflow-hidden flex flex-col gap-3.5"
             >
-              <nav className="flex flex-col gap-2 text-sm font-bold text-gray-700 pb-2 border-b border-gray-100">
-                <a href="#predictive-reactive" onClick={() => setMobileMenuOpen(false)}>Predictive & Reactive AI</a>
-                <a href="#typhoon-simulator" onClick={() => setMobileMenuOpen(false)}>Evacuation Finder</a>
-                <a href="#features" onClick={() => setMobileMenuOpen(false)}>Capabilities</a>
-                <a href="#portals" onClick={() => setMobileMenuOpen(false)}>Portals</a>
+              <nav className="flex flex-col gap-2.5 text-sm font-bold text-gray-700 pb-3 border-b border-gray-100">
+                <a href="#predictive-reactive" onClick={() => setMobileMenuOpen(false)} className="hover:text-red-700 transition-colors flex items-center justify-between">
+                  <span>Engine Modes</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </a>
+                <a href="#typhoon-simulator" onClick={() => setMobileMenuOpen(false)} className="hover:text-red-700 transition-colors flex items-center justify-between">
+                  <span>Evacuation Finder</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </a>
+                <a href="#features" onClick={() => setMobileMenuOpen(false)} className="hover:text-red-700 transition-colors flex items-center justify-between">
+                  <span>Capabilities</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </a>
+                <a href="#portals" onClick={() => setMobileMenuOpen(false)} className="hover:text-red-700 transition-colors flex items-center justify-between">
+                  <span>Portals & Dashboards</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </a>
+                <a href="#hotlines" onClick={() => setMobileMenuOpen(false)} className="hover:text-red-700 transition-colors flex items-center justify-between">
+                  <span>Emergency Hotlines</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </a>
               </nav>
 
-              <Link
-                to="/report"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center gap-1.5 py-2.5 text-xs font-extrabold text-white bg-red-700 rounded-md shadow-xs"
-              >
-                <FileText size={14} /> Report Incident Now
-              </Link>
+              <div className="flex flex-col gap-2 pt-1">
+                <Link
+                  to="/near-incident-live-monitoring"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-extrabold text-white bg-purple-900 hover:bg-purple-950 rounded-xl shadow-xs transition-all"
+                >
+                  <Radio size={15} className="text-purple-300 animate-pulse" /> Open Live Incident Feed
+                </Link>
+                <Link
+                  to="/report"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-extrabold text-white bg-red-700 hover:bg-red-800 rounded-xl shadow-xs transition-all"
+                >
+                  <FileText size={15} /> Report Emergency Incident
+                </Link>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-extrabold text-gray-800 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all"
+                >
+                  <Lock size={14} className="text-red-600" /> Sign In to Portal
+                </Link>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -259,17 +291,17 @@ export default function LandingPage() {
                 AI-driven hazard risk forecasting, multi-channel citizen SOS intake, and real-time station dispatch across all emergency disaster scenarios.
               </p>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-1">
+              {/* Action Buttons (Always Flex Row on Mobile & Desktop) */}
+              <div className="flex flex-row items-center gap-2 sm:gap-3 pt-1 overflow-x-auto max-w-full no-scrollbar pb-1">
                 <Link
                   to="/near-incident-live-monitoring"
-                  className="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-purple-900 hover:bg-purple-950 rounded-xl shadow-md transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-purple-900 hover:bg-purple-950 rounded-full shadow-md transition-all cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   <Radio size={15} className="text-purple-300 animate-pulse" /> Live Incident Feed
                 </Link>
                 <Link
                   to="/report"
-                  className="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-red-700 hover:bg-red-800 rounded-xl shadow-md transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-red-700 hover:bg-red-800 rounded-full shadow-md transition-all cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   <FileText size={15} /> Report Emergency
                 </Link>
