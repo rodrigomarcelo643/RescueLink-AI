@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { DISASTER_TYPES } from '@/constants/disasterTypes'
 import { checkRateLimit, uploadProofImages, submitPublicReport } from '@/services/incidents.service'
 import type { AIValidationResult } from '@/services/aiValidation.service'
+import { checkAndSendProximityNotification } from '@/services/deviceNotificationService'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const MAX_IMAGES = 5
@@ -353,6 +354,9 @@ export default function PublicReport() {
       setTicketId(response.id)
       setAiResult(response.aiValidation)
       setSubmitted(true)
+
+      // Trigger immediate device notification for new report
+      checkAndSendProximityNotification(response, coords, 100, true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Submission failed. Please try again.')
     } finally {

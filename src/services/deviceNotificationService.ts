@@ -77,14 +77,19 @@ export function isNotificationPermissionGranted(): boolean {
 }
 
 /**
- * Triggers native Android/Desktop Notification via Service Worker Registration
+ * Triggers native Android/Desktop Notification via Service Worker Registration or Window Notification
  */
 async function dispatchNativeOSNotification(title: string, options: NotificationOptions & { url?: string }): Promise<boolean> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
 
-  try {
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready
+  // 1. Try Service Worker showNotification (Required for Android & PWA background alerts)
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
+      ])
+
       if (reg && reg.showNotification) {
         await reg.showNotification(title, {
           icon: '/icon-192.png',
@@ -95,16 +100,21 @@ async function dispatchNativeOSNotification(title: string, options: Notification
         } as any)
         return true
       }
+    } catch (swErr) {
+      console.warn('Service Worker notification failed, falling back to window Notification:', swErr)
     }
+  }
 
+  // 2. Fallback to Window Notification API
+  try {
     new Notification(title, {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       ...options,
     })
     return true
-  } catch (err) {
-    console.warn('Native notification dispatch error:', err)
+  } catch (winErr) {
+    console.warn('Window notification dispatch error:', winErr)
     return false
   }
 }
@@ -113,32 +123,43 @@ async function dispatchNativeOSNotification(title: string, options: Notification
  * Evaluates live incoming incident and sends native device push notification if near user's GPS position
  */
 export async function checkAndSendProximityNotification(
-  incident: Incident,
+  incident: any,
   userCoords: { lat: number; lng: number } | null = null,
-  maxRadiusKm: number = 50
+  maxRadiusKm: number = 100,
+  forceShow: boolean = false
 ): Promise<boolean> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
-  if (!incident || !incident.latitude || !incident.longitude) return false
+  if (!incident) return false
+
+  const incLat = incident.latitude ?? incident.lat ?? 10.3157
+  const incLng = incident.longitude ?? incident.lng ?? 123.8854
 
   const coords = userCoords || getSavedUserGPSCoordinates()
-  const distKm = haversineDistKm(coords.lat, coords.lng, incident.latitude, incident.longitude)
+  const distKm = haversineDistKm(coords.lat, coords.lng, incLat, incLng)
 
-  if (distKm > maxRadiusKm) return false
+  if (distKm > maxRadiusKm && !forceShow) return false
 
-  const notifiedRaw = localStorage.getItem(NOTIFIED_INCIDENTS_KEY) || '[]'
-  const notifiedList: string[] = JSON.parse(notifiedRaw)
-  if (notifiedList.includes(incident.id)) return false
+  const incidentId = incident.id || `inc-${Date.now()}`
+  if (!forceShow) {
+    const notifiedRaw = localStorage.getItem(NOTIFIED_INCIDENTS_KEY) || '[]'
+    const notifiedList: string[] = JSON.parse(notifiedRaw)
+    if (notifiedList.includes(incidentId)) return false
 
-  notifiedList.push(incident.id)
-  if (notifiedList.length > 50) notifiedList.shift()
-  localStorage.setItem(NOTIFIED_INCIDENTS_KEY, JSON.stringify(notifiedList))
+    notifiedList.push(incidentId)
+    if (notifiedList.length > 50) notifiedList.shift()
+    localStorage.setItem(NOTIFIED_INCIDENTS_KEY, JSON.stringify(notifiedList))
+  }
 
-  const title = `🚨 EMERGENCY NEAR YOU: ${incident.disaster_type.toUpperCase()} (${incident.severity.toUpperCase()})`
-  const body = `📍 ${distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`} away: ${incident.location_text || 'Nearby Sector'}. Tap to view evacuation shelter & safety map.`
+  const disasterType = (incident.disaster_type || incident.type || 'Emergency').toUpperCase()
+  const severity = (incident.severity || 'high').toUpperCase()
+  const locationText = incident.location_text || incident.address || 'Nearby Sector'
+
+  const title = `🚨 EMERGENCY ALERT (${severity}): ${disasterType}`
+  const body = `📍 ${distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`} away: ${locationText}. Tap to view safety route & evacuation center.`
 
   return dispatchNativeOSNotification(title, {
     body,
-    tag: `incident-${incident.id}`,
+    tag: `incident-${incidentId}`,
     url: '/happenings',
   })
 }
@@ -155,7 +176,7 @@ export async function sendSampleDeviceNotification(): Promise<boolean> {
 
   return dispatchNativeOSNotification(title, {
     body,
-    tag: 'test-sample-001',
+    tag: `test-sample-${Date.now()}`,
     url: '/happenings',
   })
 }
@@ -164,7 +185,7 @@ let liveSubscriptionChannel: any = null
 let pollingIntervalRef: any = null
 
 /**
- * High-frequency polling backup engine (runs every 8s) to ensure newly inserted emergency reports trigger notifications
+ * High-frequency polling backup engine (runs every 6s) to ensure newly inserted emergency reports trigger notifications
  */
 function startLivePollingFallback() {
   if (pollingIntervalRef) return
@@ -183,13 +204,13 @@ function startLivePollingFallback() {
       if (data && data.length > 0) {
         const userCoords = getSavedUserGPSCoordinates()
         for (const inc of data as Incident[]) {
-          await checkAndSendProximityNotification(inc, userCoords, 50)
+          await checkAndSendProximityNotification(inc, userCoords, 100)
         }
       }
     } catch (e) {
       console.warn('Polling notification check error:', e)
     }
-  }, 8000)
+  }, 6000)
 }
 
 /**
@@ -201,20 +222,20 @@ export function initLiveProximityPushListener() {
   if (liveSubscriptionChannel) return
 
   liveSubscriptionChannel = supabase
-    .channel('public_live_proximity_alerts')
+    .channel('public_live_proximity_alerts_v2')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
+      { event: '*', schema: 'public', table: 'rescue_tickets' },
       (payload) => {
-        const newIncident = payload.new as Incident
-        if (newIncident && (newIncident.status === 'pending' || newIncident.status === 'responding')) {
-          checkAndSendProximityNotification(newIncident, null, 50)
+        const newIncident = (payload.new || payload.old) as Incident
+        if (newIncident) {
+          checkAndSendProximityNotification(newIncident, null, 100, true)
         }
       }
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log('📡 Live Proximity Alert Push Engine subscribed to Supabase Realtime & Polling Backup!')
+        console.log('📡 Live Proximity Alert Push Engine subscribed to Supabase Realtime & High-Frequency Polling!')
       }
     })
 }
