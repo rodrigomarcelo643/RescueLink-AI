@@ -24,7 +24,7 @@ import {
 } from '@/services/deviceNotificationService'
 import {
   AlertTriangle, Radio, MapPin, ArrowLeft, FileText,
-  Filter, Navigation, ExternalLink, Activity, Search, ChevronRight,
+  Filter, Navigation, Activity, Search, ChevronRight,
   ShieldCheck, ShieldAlert, Bell
 } from 'lucide-react'
 
@@ -330,10 +330,10 @@ export default function PublicHappenings() {
                     </span>
                   </div>
                   <h3 className="text-sm sm:text-base font-extrabold text-white">
-                    AI Recommends Preemptive Evacuation to: {prediction.calamityReadiness.matchedEvacuationCenter?.name || 'Nearest Evacuation Center'}
+                    AI Recommends Preemptive Evacuation to: {prediction.calamityReadiness.nearestOpenShelterName || 'Nearest Evacuation Center'}
                   </h3>
                   <p className="text-xs text-purple-200 font-medium max-w-2xl">
-                    📍 Located {prediction.calamityReadiness.matchedEvacuationCenter?.distance || 'nearby'} from your GPS position ({prediction.calamityReadiness.matchedEvacuationCenter?.capacity || 400} spots available).
+                    📍 Located {prediction.calamityReadiness.shelterDistanceKm} km from your GPS position ({prediction.calamityReadiness.availableCapacity} spots available).
                   </p>
                 </div>
               </div>
