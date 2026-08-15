@@ -42,12 +42,22 @@ export default function FloatingIncidentWidget() {
     try { localStorage.setItem('rescuelink_floating_widget_minimized', String(val)) } catch (e) {}
   }
 
-  // Do not render floating chatbot pill if running in widget window mode or installed standalone PWA mode
+  // Check if current route is a public citizen route (Landing, Public Dashboard, Live Incident Feed, Report, Track)
+  const isPublicRoute =
+    location.pathname === '/' ||
+    location.pathname === '/public' ||
+    location.pathname === '/near-incident-live-monitoring' ||
+    location.pathname === '/report' ||
+    location.pathname.startsWith('/track/')
+
+  // Do not render floating widget inside LGU/Agency internal dashboards or inside standalone widget window mode
   const isWidgetModeWindow =
     new URLSearchParams(location.search).get('mode') === 'widget' ||
     window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: minimal-ui)').matches ||
     (navigator as any).standalone === true
+
+  if (!isPublicRoute || isWidgetModeWindow) return null
 
   useEffect(() => {
     let active = true
