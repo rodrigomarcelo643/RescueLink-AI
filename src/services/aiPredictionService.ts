@@ -132,8 +132,10 @@ export function calculateAIPrediction(
   customLocationName?: string,
   forcedHazardType?: string
 ): AIPredictionResult {
-  // 1. Filter incidents with valid coordinates
-  let validIncidents = incidents.filter((i) => i.latitude !== null && i.longitude !== null)
+  // 1. Filter incidents with valid coordinates (exclude closed & rescued tickets)
+  let validIncidents = incidents.filter(
+    (i) => i.latitude !== null && i.longitude !== null && i.status !== 'closed' && i.status !== 'rescued'
+  )
 
   // If DB has no nearby incidents (within 25km), dynamically generate sample incidents relative to the user's current GPS location!
   const nearbyCount = validIncidents.filter(
@@ -457,16 +459,18 @@ export async function getPublicHappenings(userCoords?: { lat: number; lng: numbe
   const happenings: PublicHappening[] = []
 
   try {
-    // 1. Fetch live rescue tickets
+    // 1. Fetch live unresolved rescue tickets (exclude closed and rescued)
     const { data: tickets } = await supabase
       .from('rescue_tickets')
       .select('*')
+      .in('status', ['pending', 'responding'])
       .order('created_at', { ascending: false })
       .limit(20)
 
     const incidentList: Incident[] = (tickets as Incident[]) || []
 
     incidentList.forEach((t) => {
+      if (t.status === 'closed' || t.status === 'rescued') return
       let dist: number | undefined
       if (userCoords && t.latitude && t.longitude) {
         dist = haversineKm(userCoords.lat, userCoords.lng, t.latitude, t.longitude)
