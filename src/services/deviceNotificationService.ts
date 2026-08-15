@@ -61,11 +61,24 @@ export async function subscribeDeviceToWebPush() {
 
   try {
     const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
-    if (!sub) {
-      console.log('📡 Preparing Service Worker Push Subscription for closed-app alerts...')
-    } else {
-      console.log('📡 Service Worker active and ready for background alerts!')
+    let sub = await reg.pushManager.getSubscription()
+    const coords = getSavedUserGPSCoordinates()
+
+    if (sub) {
+      const subJson = sub.toJSON()
+      if (subJson.endpoint) {
+        await supabase.from('push_subscriptions').upsert(
+          {
+            endpoint: subJson.endpoint,
+            p256dh: subJson.keys?.p256dh || '',
+            auth: subJson.keys?.auth || '',
+            user_lat: coords.lat,
+            user_lng: coords.lng,
+          },
+          { onConflict: 'endpoint' }
+        ).catch(() => {})
+        console.log('📡 Saved device Push Endpoint to Supabase for closed-app alerts!')
+      }
     }
   } catch (err) {
     console.warn('Web Push Subscription error:', err)
