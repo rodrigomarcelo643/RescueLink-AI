@@ -24,6 +24,7 @@ export interface AIPatternSuggestion {
   patternReason: string
   reportCount: number
   affectedLocation: string
+  proofMediaUrls?: string[]
 }
 
 /**
@@ -121,6 +122,8 @@ export const createAndPublishAdvisory = async (advisory: {
   severity?: string
   ticketId?: string
   patternSummary?: string
+  mediaUrls?: string[]
+  audioUrl?: string
 }): Promise<{
   advisoryId?: string
   syncedToFacebook: boolean
@@ -149,11 +152,31 @@ export const createAndPublishAdvisory = async (advisory: {
 
   if (fbPageId && fbAccessToken) {
     try {
-      const fbMessage = `🚨 [RESCUELINK EMERGENCY PUBLIC ADVISORY]\n\n📌 ${advisory.title.toUpperCase()}\n\n${advisory.body}\n\n📍 Category: ${advisory.type.toUpperCase()}\n⚡ Status: OFFICIAL LGU EMERGENCY BROADCAST\n\n🤖 Auto-Broadcasted via RescueLink AI Facebook Sync System\n📡 Sent from LGU Emergency Command Center | Ref: #RESCUELINK-SYNC\n🌐 Live Portal: https://rescue-link-ai.vercel.app/`
+      let proofSection = ''
+      const allProofLinks: string[] = []
+
+      if (advisory.mediaUrls && advisory.mediaUrls.length > 0) {
+        advisory.mediaUrls.forEach((url, idx) => {
+          allProofLinks.push(`📸 Proof Attachment #${idx + 1}: ${url}`)
+        })
+      }
+      if (advisory.audioUrl) {
+        allProofLinks.push(`🎙️ Voice SOS Telemetry Recording: ${advisory.audioUrl}`)
+      }
+
+      if (allProofLinks.length > 0) {
+        proofSection = `\n\n📷 ATTACHED EMERGENCY PROOF & AUDIO TELEMETRY:\n${allProofLinks.join('\n')}`
+      }
+
+      const fbMessage = `🚨 [RESCUELINK EMERGENCY PUBLIC ADVISORY & PROOF INTELLIGENCE]\n\n📌 ${advisory.title.toUpperCase()}\n\n${advisory.body}${proofSection}\n\n📍 Category: ${advisory.type.toUpperCase()}\n⚡ Status: OFFICIAL LGU EMERGENCY BROADCAST\n\n🤖 Auto-Broadcasted via RescueLink AI Facebook Sync System\n📡 Sent from LGU Emergency Command Center | Ref: #RESCUELINK-SYNC\n🌐 Live Portal: https://rescue-link-ai.vercel.app/`
 
       const params = new URLSearchParams()
       params.append('message', fbMessage)
       params.append('access_token', fbAccessToken)
+
+      if (advisory.mediaUrls && advisory.mediaUrls.length > 0) {
+        params.append('link', advisory.mediaUrls[0])
+      }
 
       const res = await fetch(`https://graph.facebook.com/v19.0/${fbPageId}/feed`, {
         method: 'POST',
@@ -281,6 +304,16 @@ export const generateAIPatternSuggestions = (incidents: Incident[]): AIPatternSu
 
     const upperType = typeKey.toUpperCase()
 
+    // Collect proof media URLs attached to incidents in this cluster
+    const proofMediaUrls: string[] = []
+    items.forEach((inc) => {
+      if (inc.media_urls && Array.isArray(inc.media_urls)) {
+        inc.media_urls.forEach((url) => {
+          if (url && !proofMediaUrls.includes(url)) proofMediaUrls.push(url)
+        })
+      }
+    })
+
     return {
       id: `pat_${idx}_${Date.now()}`,
       title: `PUBLIC DISASTER ADVISORY: ${upperType} EMERGENCY WARNING IN ${topLoc.toUpperCase()}`,
@@ -291,6 +324,7 @@ export const generateAIPatternSuggestions = (incidents: Incident[]): AIPatternSu
       patternReason: `Cluster Pattern: ${count} verified incident report(s) in ${topLoc}`,
       reportCount: count,
       affectedLocation: topLoc,
+      proofMediaUrls,
     }
   })
 }

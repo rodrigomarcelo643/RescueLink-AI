@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   ExternalLink, AlertTriangle, CheckCircle, Clock, Flag, MessageCircle,
   Sparkles, Send, Radio, Megaphone, Share2, CheckCircle2, RefreshCw,
-  Layers, Zap, X, Plus
+  Layers, Zap, X, Plus, Volume2, Image as ImageIcon
 } from 'lucide-react'
 import { useFacebookPosts } from '@/hooks/useFacebookPosts'
 import { useMessengerTickets } from '@/hooks/useMessengerTickets'
@@ -125,6 +125,15 @@ export default function FbMonitorPanel() {
     }
   }
 
+  const [availableProofMedia, setAvailableProofMedia] = useState<string[]>([])
+  const [selectedProofMedia, setSelectedProofMedia] = useState<string[]>([])
+
+  const toggleProofMedia = (url: string) => {
+    setSelectedProofMedia((prev) =>
+      prev.includes(url) ? prev.filter((item) => item !== url) : [...prev, url]
+    )
+  }
+
   // Adopt AI Recommended Pattern Suggestion & Open Modal
   const handleAdoptSuggestion = (sugg: AIPatternSuggestion) => {
     setTitle(sugg.title)
@@ -132,6 +141,11 @@ export default function FbMonitorPanel() {
     setSeverity(sugg.severity)
     setBody(sugg.body)
     setPatternReason(sugg.patternReason)
+
+    const media = sugg.proofMediaUrls || []
+    setAvailableProofMedia(media)
+    setSelectedProofMedia(media)
+
     setPublishSuccess(null)
     setIsModalOpen(true)
   }
@@ -151,6 +165,7 @@ export default function FbMonitorPanel() {
         type: category,
         severity,
         patternSummary: patternReason,
+        mediaUrls: selectedProofMedia,
       })
 
       if (res.syncedToFacebook) {
@@ -539,8 +554,8 @@ export default function FbMonitorPanel() {
 
       {/* ── Facebook Page Broadcast Publisher Modal ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-3xl border border-blue-700 shadow-2xl flex flex-col gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-blue-700 shadow-2xl flex flex-col gap-4">
             <div className="flex items-center justify-between pb-3 border-b border-blue-800/60">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-blue-600/30 text-blue-400 rounded-xl border border-blue-600/50">
@@ -603,7 +618,7 @@ export default function FbMonitorPanel() {
                   Broadcast Message & Safety Instructions *
                 </label>
                 <textarea
-                  rows={5}
+                  rows={4}
                   required
                   placeholder="Enter official public disaster safety instructions, evacuation guidance, and emergency hotlines..."
                   value={body}
@@ -611,6 +626,69 @@ export default function FbMonitorPanel() {
                   className="w-full bg-slate-800/90 text-white placeholder:text-gray-400 text-xs font-medium px-3.5 py-2.5 rounded-xl border border-blue-700/60 outline-none focus:border-blue-400 transition-colors leading-relaxed"
                 />
               </div>
+
+              {availableProofMedia.length > 0 && (
+                <div className="p-3.5 bg-slate-800/80 rounded-xl border border-blue-700/50 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-300 flex items-center gap-1.5">
+                      <ImageIcon size={13} className="text-blue-400" /> Attached Proof Attachments ({selectedProofMedia.length} of {availableProofMedia.length} selected for Facebook Post)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProofMedia(availableProofMedia)}
+                        className="text-[10px] font-extrabold text-blue-300 hover:text-white underline cursor-pointer"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-blue-500">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProofMedia([])}
+                        className="text-[10px] font-extrabold text-gray-400 hover:text-white underline cursor-pointer"
+                      >
+                        Deselect All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    {availableProofMedia.map((url, idx) => {
+                      const isChecked = selectedProofMedia.includes(url)
+                      const isAudio = url.toLowerCase().includes('.mp3') || url.toLowerCase().includes('.wav') || url.toLowerCase().includes('audio')
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => toggleProofMedia(url)}
+                          className={`relative p-2 rounded-lg border flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
+                            isChecked
+                              ? 'border-blue-400 bg-blue-950/80 ring-2 ring-blue-500/40'
+                              : 'border-slate-700 bg-slate-900/60 opacity-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="absolute top-1.5 left-1.5 size-3.5 rounded accent-blue-600 pointer-events-none"
+                          />
+                          {isAudio ? (
+                            <div className="size-14 flex flex-col items-center justify-center text-purple-300">
+                              <Volume2 size={22} />
+                              <span className="text-[8px] font-bold mt-1">Voice SOS</span>
+                            </div>
+                          ) : (
+                            <img src={url} alt="Proof" className="size-14 object-cover rounded shadow-xs" />
+                          )}
+                          <span className={`text-[9px] font-bold truncate w-full text-center px-1 ${isChecked ? 'text-blue-300' : 'text-gray-400'}`}>
+                            {isChecked ? '✓ Sync to FB' : 'Excluded'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {publishSuccess && (
                 <div className="p-3 bg-emerald-950/90 border border-emerald-500/60 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">
