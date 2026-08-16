@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, AlertTriangle, Heart, Users, Globe, Settings, MessageSquare, Map, Building2, ShieldCheck, Sparkles,
+  LayoutDashboard, AlertTriangle, Heart, Users, Globe, Settings, MessageSquare, Building2, ShieldCheck, Radio, MonitorCloud, 
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/context/AuthContext'
@@ -16,9 +16,9 @@ export const NAV_ITEMS: NavItem[] = [
   // ── LGU ──────────────────────────────────────────
   { to: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard, roles: ['lgu'], group: 'Overview'    },
   { to: '/incidents',   label: 'Incidents',        icon: AlertTriangle,  roles: ['lgu'], group: 'Operations'  },
-  { to: '/fb-monitor',  label: 'FB Monitoring',    icon: MessageSquare,  roles: ['lgu'], group: 'Monitoring'  },
-  { to: '/map',          label: 'Monitoring Map',   icon: Map,            roles: ['lgu'], group: 'Monitoring'  },
-  { to: '/near-incident-live-monitoring', label: 'Live Incident Feed', icon: Sparkles,    roles: ['lgu'], group: 'Monitoring'  },
+  { to: '/fb-monitor',  label: 'Advisories & FB Sync', icon: MessageSquare, roles: ['lgu'], group: 'Broadcasts' },
+  { to: '/map',          label: 'Monitoring Map',   icon: MonitorCloud,            roles: ['lgu'], group: 'Monitoring'  },
+  { to: '/near-incident-live-monitoring', label: 'Live Incident Feed', icon: Radio,    roles: ['lgu'], group: 'Monitoring'  },
   { to: '/donations',   label: 'Donations',        icon: Heart,          roles: ['lgu'], group: 'Operations'  },
   { to: '/volunteers',  label: 'Volunteers',       icon: Users,          roles: ['lgu'], group: 'Operations'  },
   { to: '/evacuation-centers', label: 'Evacuation Centers', icon: Building2, roles: ['lgu'], group: 'Operations' },
