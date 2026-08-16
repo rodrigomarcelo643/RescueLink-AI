@@ -173,8 +173,82 @@ export default function Dashboard() {
     color: SEVERITY_COLOR[s],
   }))
 
-  // ── Weekly Progress of Responding Speed Line Graph ─────────────────────
-  const weeklyResponseProgress = useMemo(() => {
+  // ── Dynamic Response Speed Line Graph Breakdown based on Selected Period ─
+  const responseProgressTrend = useMemo(() => {
+    const now = new Date()
+
+    if (period === 'day') {
+      // 4 Time Blocks Today (12 AM - 6 AM, 6 AM - 12 PM, 12 PM - 6 PM, 6 PM - Now)
+      const blocks = [
+        { label: '12AM-6AM', hStart: 0, hEnd: 6 },
+        { label: '6AM-12PM', hStart: 6, hEnd: 12 },
+        { label: '12PM-6PM', hStart: 12, hEnd: 18 },
+        { label: '6PM-Now',  hStart: 18, hEnd: 24 },
+      ]
+
+      return blocks.map(({ label, hStart, hEnd }) => {
+        const blockIncidents = filtered.filter((i) => {
+          const d = new Date(i.created_at)
+          return d.getHours() >= hStart && d.getHours() < hEnd
+        })
+        const stats = calculateOverallResponseStats(blockIncidents)
+        return {
+          interval: label,
+          dispatchMins: stats.avgDispatchMinutes,
+          rescueMins: stats.avgResolutionMinutes,
+        }
+      })
+    }
+
+    if (period === 'month') {
+      // 3 Ten-day blocks (Days 1-10, 11-20, 21-30)
+      const blocks = [
+        { label: 'Day 1-10', offsetStart: 30, offsetEnd: 20 },
+        { label: 'Day 11-20', offsetStart: 20, offsetEnd: 10 },
+        { label: 'Day 21-30', offsetStart: 10, offsetEnd: 0 },
+      ]
+
+      return blocks.map(({ label, offsetStart, offsetEnd }) => {
+        const start = new Date(now); start.setDate(start.getDate() - offsetStart)
+        const end = new Date(now); end.setDate(end.getDate() - offsetEnd)
+
+        const blockIncidents = filtered.filter((i) => {
+          const d = new Date(i.created_at)
+          return d >= start && d <= end
+        })
+        const stats = calculateOverallResponseStats(blockIncidents)
+        return {
+          interval: label,
+          dispatchMins: stats.avgDispatchMinutes,
+          rescueMins: stats.avgResolutionMinutes,
+        }
+      })
+    }
+
+    if (period === 'year') {
+      // 4 Quarters
+      const quarters = [
+        { label: 'Q1', mStart: 0, mEnd: 3 },
+        { label: 'Q2', mStart: 3, mEnd: 6 },
+        { label: 'Q3', mStart: 6, mEnd: 9 },
+        { label: 'Q4', mStart: 9, mEnd: 12 },
+      ]
+
+      return quarters.map(({ label, mStart, mEnd }) => {
+        const blockIncidents = filtered.filter((i) => {
+          const m = new Date(i.created_at).getMonth()
+          return m >= mStart && m < mEnd
+        })
+        const stats = calculateOverallResponseStats(blockIncidents)
+        return {
+          interval: label,
+          dispatchMins: stats.avgDispatchMinutes,
+          rescueMins: stats.avgResolutionMinutes,
+        }
+      })
+    }
+
+    // Default 'week' -> 4 weeks
     const weeks = [
       { label: '3 Wks Ago', offsetStart: 28, offsetEnd: 21 },
       { label: '2 Wks Ago', offsetStart: 21, offsetEnd: 14 },
@@ -182,29 +256,22 @@ export default function Dashboard() {
       { label: 'This Wk', offsetStart: 7, offsetEnd: 0 },
     ]
 
-    const now = new Date()
-
     return weeks.map(({ label, offsetStart, offsetEnd }) => {
-      const start = new Date(now)
-      start.setDate(start.getDate() - offsetStart)
-      const end = new Date(now)
-      end.setDate(end.getDate() - offsetEnd)
+      const start = new Date(now); start.setDate(start.getDate() - offsetStart)
+      const end = new Date(now); end.setDate(end.getDate() - offsetEnd)
 
-      const weekIncidents = incidents.filter((i) => {
+      const blockIncidents = incidents.filter((i) => {
         const d = new Date(i.created_at)
         return d >= start && d <= end
       })
-
-      const stats = calculateOverallResponseStats(weekIncidents)
-
+      const stats = calculateOverallResponseStats(blockIncidents)
       return {
-        week: label,
+        interval: label,
         dispatchMins: stats.avgDispatchMinutes,
         rescueMins: stats.avgResolutionMinutes,
-        ticketCount: weekIncidents.length,
       }
     })
-  }, [incidents])
+  }, [filtered, incidents, period])
 
   // ── Doughnut Data for Elapsed Response Status ──────────────────────────
   const doughnutData = useMemo(() => {
@@ -426,14 +493,14 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Line Chart: Weekly Progress of Responding Speed */}
+          {/* Line Chart: Response Speed Progress Trend */}
           <div className="p-3.5 bg-gray-50/70 rounded-xl border border-gray-200/80 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
-                  <TrendingUp size={13} className="text-emerald-600" /> Weekly Response Progress (Line Graph)
+                  <TrendingUp size={13} className="text-emerald-600" /> Response Speed Progress ({PERIOD_LABEL[period]})
                 </h4>
-                <p className="text-[10px] text-gray-500 font-medium">Monitoring weekly acceleration in agency response speed</p>
+                <p className="text-[10px] text-gray-500 font-medium">Monitoring acceleration in agency dispatch & rescue speed</p>
               </div>
               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 Faster Response ⚡
@@ -442,8 +509,8 @@ export default function Dashboard() {
 
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyResponseProgress} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} stroke="#cbd5e1" />
+                <LineChart data={responseProgressTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="interval" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} stroke="#cbd5e1" />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} stroke="#cbd5e1" unit="m" />
                   <Tooltip
                     contentStyle={{ background: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px', fontWeight: 'bold', border: 'none' }}
@@ -473,7 +540,7 @@ export default function Dashboard() {
 
             <div className="text-[10px] font-semibold text-gray-500 flex items-center justify-between pt-2 border-t border-gray-200/60">
               <span>📉 Lower numbers indicate faster response time</span>
-              <span className="text-purple-700 font-bold">Goal: Continual weekly reduction</span>
+              <span className="text-purple-700 font-bold">Goal: Continual reduction</span>
             </div>
           </div>
         </div>
