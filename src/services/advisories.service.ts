@@ -71,23 +71,39 @@ export const getFbPostsTracking = async (): Promise<FbPostTrackingRecord[]> => {
  */
 export const recordFbPostTracking = async (record: FbPostTrackingRecord) => {
   try {
+    const payload: Record<string, any> = {
+      title: record.title,
+      body: record.body,
+      category: record.category,
+      sync_status: record.sync_status,
+      synced_at: record.synced_at ?? new Date().toISOString(),
+    }
+
+    if (record.severity) payload.severity = record.severity
+    if (record.fb_post_id) payload.fb_post_id = record.fb_post_id
+    if (record.incident_pattern_summary) payload.incident_pattern_summary = record.incident_pattern_summary
+
     const { data, error } = await supabase
       .from('fb_posts_tracking')
-      .insert({
-        title: record.title,
-        body: record.body,
-        category: record.category,
-        severity: record.severity ?? 'high',
-        fb_post_id: record.fb_post_id ?? null,
-        synced_at: record.synced_at ?? new Date().toISOString(),
-        sync_status: record.sync_status,
-        incident_pattern_summary: record.incident_pattern_summary ?? null,
-      })
+      .insert(payload)
       .select('id')
-      .single()
+      .maybeSingle()
 
     if (error) {
-      console.warn('fb_posts_tracking insert notice:', error.message)
+      console.warn('fb_posts_tracking insert fallback:', error.message)
+      // Fallback insert with minimum safe schema
+      const fallback = await supabase
+        .from('fb_posts_tracking')
+        .insert({
+          title: record.title,
+          body: record.body,
+          category: record.category,
+          sync_status: record.sync_status,
+        })
+        .select('id')
+        .maybeSingle()
+
+      return fallback.data?.id
     }
     return data?.id
   } catch (err) {
@@ -183,14 +199,18 @@ export const createAndPublishAdvisory = async (advisory: {
 
   // 3. Fallback insert to `public_advisories` table
   try {
-    await supabase.from('public_advisories').insert({
-      ticket_id: advisory.ticketId ?? null,
+    const advPayload: Record<string, any> = {
       title: advisory.title,
       body: advisory.body,
       type: 'warning',
-    })
-  } catch {
-    // ignore constraint warnings
+    }
+    if (advisory.ticketId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(advisory.ticketId)) {
+      advPayload.ticket_id = advisory.ticketId
+    }
+
+    await supabase.from('public_advisories').insert(advPayload)
+  } catch (advErr) {
+    console.warn('public_advisories insert notice:', advErr)
   }
 
   return {
