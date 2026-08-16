@@ -122,7 +122,7 @@ export default function Login() {
       setError(authErr.message)
     } else {
       await refreshProfile()
-      navigate('/')
+      navigate('/dashboard', { replace: true })
     }
     setLoading(false)
   }

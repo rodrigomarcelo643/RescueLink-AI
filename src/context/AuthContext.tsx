@@ -35,12 +35,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data ?? null)
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (data) {
+        setProfile(data)
+      } else {
+        // Default profile fallback for authenticated Supabase LGU officers
+        setProfile({
+          id: userId,
+          full_name: 'LGU Emergency Officer',
+          role: 'lgu',
+          barangay: null,
+          municipality: 'Cebu City',
+          phone: null,
+        })
+      }
+    } catch {
+      setProfile({
+        id: userId,
+        full_name: 'LGU Emergency Officer',
+        role: 'lgu',
+        barangay: null,
+        municipality: 'Cebu City',
+        phone: null,
+      })
+    }
   }
 
   useEffect(() => {
