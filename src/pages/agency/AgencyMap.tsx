@@ -83,12 +83,12 @@ export default function AgencyMap() {
   return (
     <div className="flex flex-col gap-4">
 
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-lg border border-gray-200 shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
         <div>
           <h2 className="text-base font-extrabold text-gray-900">Live Incident Operations Map</h2>
           <p className="text-xs text-gray-500">Real-time geographical tracking for {agency?.name || 'Response Agency'}</p>
         </div>
-        <div className="flex items-center gap-3 text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
           <span className="flex items-center gap-1.5 text-red-600">
             <span className="size-2.5 rounded-full bg-red-600 animate-ping" /> Station Location
           </span>
@@ -98,7 +98,7 @@ export default function AgencyMap() {
         </div>
       </div>
 
-      <div className="relative w-full h-[620px] bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+      <div className="relative w-full h-[480px] sm:h-[620px] bg-gray-100 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
         <APIProvider apiKey={API_KEY}>
           <GoogleMap
             defaultCenter={defaultCenter}

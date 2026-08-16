@@ -385,17 +385,17 @@ export default function AgencyDashboard() {
                     </div>
                   </div>
 
-                  {/* Immediate Action Buttons */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Immediate Action Buttons (Responsive Grid/Flex) */}
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto shrink-0 justify-start md:justify-end">
                     {!isResponding && inc.status !== 'rescued' && inc.status !== 'closed' && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         <button
                           type="button"
                           disabled={isUpdating}
                           onClick={() => handleImmediateAction(inc.id)}
-                          className="px-4 py-2 text-xs font-black text-white bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-500 hover:to-green-500 rounded-lg shadow-lg border border-emerald-400/40 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                          className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 text-xs font-black text-white bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-500 hover:to-green-500 rounded-lg shadow-lg border border-emerald-400/40 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                         >
-                          <Zap size={14} className="fill-yellow-300 text-yellow-300 animate-pulse" />
+                          <Zap size={14} className="fill-yellow-300 text-yellow-300 animate-pulse shrink-0" />
                           {isUpdating ? 'Dispatching…' : 'Accept & Respond 🟢'}
                         </button>
 
@@ -403,9 +403,9 @@ export default function AgencyDashboard() {
                           type="button"
                           disabled={isUpdating}
                           onClick={() => handleDeclineDispatch(inc.id)}
-                          className="px-3 py-2 text-xs font-bold text-red-300 hover:text-red-100 bg-red-950/70 hover:bg-red-900/90 border border-red-800/60 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-2 text-xs font-bold text-red-300 hover:text-red-100 bg-red-950/70 hover:bg-red-900/90 border border-red-800/60 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
                         >
-                          <X size={13} /> {isUpdating ? 'Declining…' : 'Decline 🔴'}
+                          <X size={13} className="shrink-0" /> {isUpdating ? 'Declining…' : 'Decline 🔴'}
                         </button>
                       </div>
                     )}
@@ -419,9 +419,9 @@ export default function AgencyDashboard() {
                     <button
                       type="button"
                       onClick={() => setSelectedIncident(inc)}
-                      className="px-3 py-2 text-xs font-bold text-gray-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-colors cursor-pointer"
+                      className="px-3 py-2 text-xs font-bold text-gray-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                     >
-                      <Eye size={13} /> Details
+                      <Eye size={13} className="shrink-0 inline mr-1" /> Details
                     </button>
                   </div>
                 </div>
@@ -462,17 +462,17 @@ export default function AgencyDashboard() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-bold shadow-2xs">
-          <span className="text-[10px] font-extrabold uppercase text-gray-400 px-2 flex items-center gap-1">
+      {/* Filter Tabs (Fully Responsive Horizontal Scroll Bar) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200 text-xs font-bold shadow-2xs overflow-x-auto max-w-full">
+          <span className="text-[10px] font-extrabold uppercase text-gray-400 px-2 flex items-center gap-1 shrink-0">
             <Filter size={11} /> Filter:
           </span>
           {['all', 'pending', 'responding', 'rescued', 'closed'].map((st) => (
             <button
               key={st}
               onClick={() => setFilterStatus(st)}
-              className={`px-3 py-1 rounded text-xs font-extrabold capitalize transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold capitalize transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                 filterStatus === st
                   ? 'bg-red-700 text-white shadow-xs'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -483,7 +483,7 @@ export default function AgencyDashboard() {
           ))}
         </div>
 
-        <span className="text-xs font-bold text-gray-500">
+        <span className="text-xs font-bold text-gray-500 shrink-0">
           Showing <strong className="text-gray-900">{filtered.length}</strong> incidents
         </span>
       </div>
@@ -598,14 +598,14 @@ export default function AgencyDashboard() {
                     <Eye size={13} /> View Full Details & Map <ChevronRight size={13} />
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
                     {/* Immediate Action / Accept Button */}
                     {(inc.status === 'pending' || nearestMatch) && inc.status !== 'responding' && inc.status !== 'rescued' && inc.status !== 'closed' && (
                       <button
                         type="button"
                         disabled={isUpdating}
                         onClick={() => handleImmediateAction(inc.id)}
-                        className="px-3.5 py-1.5 text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 rounded shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                        className="px-3.5 py-2 text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap"
                       >
                         <Zap size={13} className="fill-yellow-300 text-yellow-300" />
                         {isUpdating ? 'Dispatching…' : 'Respond Immediately 🟢'}
@@ -617,7 +617,7 @@ export default function AgencyDashboard() {
                         type="button"
                         disabled={isUpdating}
                         onClick={() => handleDeclineDispatch(inc.id)}
-                        className="px-3 py-1.5 text-xs font-extrabold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded transition-colors flex items-center gap-1 cursor-pointer"
+                        className="px-3 py-2 text-xs font-extrabold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap"
                       >
                         <X size={13} /> {isUpdating ? 'Declining…' : 'Decline Dispatch 🔴'}
                       </button>
@@ -628,7 +628,7 @@ export default function AgencyDashboard() {
                         type="button"
                         disabled={isUpdating}
                         onClick={() => handleUpdateStatus(inc.id, 'rescued')}
-                        className="px-3.5 py-1.5 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded transition-colors cursor-pointer"
+                        className="px-3.5 py-2 text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                       >
                         {isUpdating ? 'Updating…' : 'Mark as Rescued / On Scene 🛟'}
                       </button>
@@ -639,7 +639,7 @@ export default function AgencyDashboard() {
                         type="button"
                         disabled={isUpdating}
                         onClick={() => handleUpdateStatus(inc.id, 'closed')}
-                        className="px-3.5 py-1.5 text-xs font-extrabold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded transition-colors cursor-pointer"
+                        className="px-3.5 py-2 text-xs font-extrabold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                       >
                         {isUpdating ? 'Updating…' : 'Close Ticket ✓'}
                       </button>
