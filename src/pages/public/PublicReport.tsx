@@ -11,7 +11,7 @@ import mainLogo from '@/assets/logo/main_logo.jpg'
 import { Input } from '@/components/ui/input'
 import { DISASTER_TYPES } from '@/constants/disasterTypes'
 import { checkRateLimit, uploadProofImages, submitPublicReport } from '@/services/incidents.service'
-import type { AIValidationResult } from '@/services/aiValidation.service'
+import { analyzeAndValidateReport, type AIValidationResult } from '@/services/aiValidation.service'
 import { checkAndSendProximityNotification } from '@/services/deviceNotificationService'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -98,6 +98,7 @@ export default function PublicReport() {
   const [submitted, setSubmitted] = useState(false)
   const [ticketId, setTicketId] = useState('')
   const [aiResult, setAiResult] = useState<AIValidationResult | null>(null)
+  const [invalidModal, setInvalidModal] = useState<{ isOpen: boolean; reason: string }>({ isOpen: false, reason: '' })
 
   const cameraRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
@@ -312,6 +313,8 @@ export default function PublicReport() {
     if (disasterType === 'other' && !otherType.trim()) { setError('Please specify the disaster type.'); return }
     if (!locationText.trim()) { setError('Please enter a location.'); return }
     if (!description.trim()) { setError('Please describe the incident or record a Voice SOS.'); return }
+    if (!reporterContact.trim()) { setError('Contact Hotline / Mobile Number is REQUIRED so emergency station responders can contact you.'); return }
+    if (entries.length === 0 && !voiceAudioUrl) { setError('At least 1 photo, video, or audio proof attachment is REQUIRED to submit an emergency report.'); return }
 
     setLoading(true)
     setError('')
@@ -338,8 +341,32 @@ export default function PublicReport() {
         )
       }
 
+      const finalDisasterType = (disasterType === 'other' ? otherType.trim() : disasterType) as typeof DISASTER_TYPES[number]
+
+      // AI Multimodal Verification: Validate attachments and match incident details
+      const validation = await analyzeAndValidateReport({
+        disaster_type: finalDisasterType,
+        location_text: locationText,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
+        people_affected: peopleAffected ? parseInt(peopleAffected) : null,
+        raw_message: description,
+        reporter_name: reporterName,
+        reporter_contact: reporterContact,
+        media_urls: mediaUrls,
+      })
+
+      if (!validation.is_validated || !validation.is_media_valid) {
+        setLoading(false)
+        setInvalidModal({
+          isOpen: true,
+          reason: validation.media_mismatch_reason || validation.validation_notes || `AI analysis detected that your attached proof does not match the reported ${disasterType} incident details or appears to be non-emergency/dummy content.`,
+        })
+        return
+      }
+
       const response = await submitPublicReport({
-        disaster_type: (disasterType === 'other' ? otherType.trim() : disasterType) as typeof DISASTER_TYPES[number],
+        disaster_type: finalDisasterType,
         location_text: locationText,
         latitude: coords?.lat ?? null,
         longitude: coords?.lng ?? null,
@@ -689,8 +716,8 @@ export default function PublicReport() {
 
           {/* Media Upload (Photos, Videos, & Audio Files) */}
           <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-              Proof Attachments <span className="font-normal normal-case text-gray-400">(photos, videos, voice & audio files)</span>
+            <label className="text-[11px] font-extrabold uppercase tracking-widest text-red-700">
+              Proof Attachments (Photos, Videos, or Audio SOS) * <span className="font-extrabold text-red-700">(Required)</span>
             </label>
 
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
@@ -706,29 +733,35 @@ export default function PublicReport() {
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onDrop={onDrop}
-                className={`flex flex-col items-center gap-3 py-6 cursor-pointer select-none border-2 border-dashed rounded-xl transition-all ${dragging ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-gray-50/50 hover:bg-red-50/30'}`}
-                onClick={() => cameraRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl p-5 border-2 border-dashed transition-all ${
+                  dragging ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100/50'
+                }`}
               >
-                <CloudUpload size={32} className="text-gray-400" />
-                <div className="text-center">
-                  <p className="text-xs font-extrabold text-gray-700">Tap to upload proof media or audio file</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Photos, videos, or voice recordings (AI Auto-Fills Form)</p>
+                <div className="flex items-center gap-2">
+                  <CloudUpload size={22} className="text-gray-400" />
+                  <span className="text-xs font-bold text-gray-700">Upload or Record Proof Attachments</span>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
+                <p className="text-[11px] text-gray-400 text-center">
+                  Drag & drop media, or choose an option below (Photos, Videos, Audio recordings):
+                </p>
+                
+                <div className="flex items-center gap-2 flex-wrap justify-center pt-1">
                   <button
                     type="button"
                     onClick={() => cameraRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-800 bg-white border border-gray-200 rounded-lg shadow-2xs cursor-pointer"
                   >
-                    <Camera size={13} className="text-blue-600" /> Photo
+                    <Camera size={13} className="text-red-600" /> Take Photo
                   </button>
+
                   <button
                     type="button"
                     onClick={() => videoRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-800 bg-white border border-gray-200 rounded-lg shadow-2xs cursor-pointer"
                   >
-                    <Video size={13} className="text-red-600" /> Video
+                    <Video size={13} className="text-blue-600" /> Record Video
                   </button>
+
                   <button
                     type="button"
                     onClick={() => audioRef.current?.click()}
@@ -780,8 +813,9 @@ export default function PublicReport() {
               icon={<User size={14} />}
             />
             <Input
-              label="Contact Hotline / Mobile (Optional)"
+              label="Contact Hotline / Mobile (Required) *"
               placeholder="e.g. 09171234567"
+              required
               value={reporterContact}
               onChange={(e) => setReporterContact(e.target.value)}
               icon={<Phone size={14} />}
@@ -807,6 +841,53 @@ export default function PublicReport() {
           </button>
         </form>
       </main>
+
+      {/* AI Invalid / Mismatched Proof Attachment Alert Modal */}
+      {invalidModal.isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-red-200 flex flex-col gap-4"
+          >
+            <div className="flex items-center gap-3 text-red-600 border-b border-gray-100 pb-3">
+              <div className="p-2.5 bg-red-100 rounded-xl text-red-700">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase text-gray-900 tracking-wider">
+                  Invalid or Mismatched Attachment 🚨
+                </h3>
+                <span className="text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                  AI Validation Flagged
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-red-50/70 rounded-xl border border-red-100 text-xs text-gray-800 leading-relaxed flex flex-col gap-2">
+              <p className="font-bold text-red-950">
+                AI Analysis detected that your attached proof is invalid or does not match the reported emergency details.
+              </p>
+              <div className="p-2.5 bg-white rounded-lg border border-red-200 text-red-900 font-semibold text-[11px]">
+                📌 {invalidModal.reason}
+              </div>
+              <p className="text-[11px] text-gray-600 font-medium">
+                Please attach authentic, valid photo, video, or audio recording proof of the emergency incident to proceed.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setInvalidModal({ isOpen: false, reason: '' })}
+                className="w-full py-2.5 px-4 text-xs font-black text-white bg-red-700 hover:bg-red-800 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Camera size={14} /> Upload Valid Emergency Proof
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   )
