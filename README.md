@@ -33,6 +33,37 @@ For the full pitch deck strategy, judge Q&A defense, and differentiator breakdow
 
 ---
 
+## 🚀 Recent Key System Upgrades & New Features
+
+### 1. 🌀 Live Incident Feed & Super Typhoon Radar Simulator
+- **Super Typhoon Warning Simulator**: Interactive **`Simulate Typhoon Warning 🌀`** engine with real-time distance and landfall impact route telemetry (`Distance: 4.8 km | Landfall ETA: ~24 min | Speed: 185 km/h`).
+- **Satellite Eyewall Radar Map Overlay**: Multi-layer radar eyewall simulation (outer rainband radar ring, gale-force wind contour ring, and calm eyewall center `🌀 SUPER TYPHOON EYEWALL 185 KM/H`).
+- **Non-Evacuation Content Integrity**: Keeps all public emergency reports, map alerts, and community risk assessments 100% intact and visible during typhoon simulation.
+
+### 2. 🏫 AI Evacuation Directives & Shelter Modals
+- **`EvacuationSelectionModal`**: Interactive modal listing all AI-recommended evacuation centers sorted by proximity to the user's fixed GPS location, allowing users to select target evacuation shelters (`Selected Evacuation Target 🎯`).
+- **`EvacuationCenterDetailsModal`**: Detailed shelter modal with live capacity progress bars, occupancy, on-site relief supplies (generators, potable water, medical clinic, relief packs), Google Maps directions, and hotline dialing.
+- **Supabase Database Persistence**: Fully integrated `public.evacuation_centers` table with UUID primary keys & permissive RLS policies.
+
+### 3. 📢 Facebook Broadcast & AI Pattern Intelligence Center
+- **Interactive Broadcast Modal**: Converted the FB Broadcast Publisher into a modal dialog window (`+ New Facebook Broadcast 📢`).
+- **AI Pattern Generator**: `generateAIPatternSuggestions()` scans live incident report clusters and auto-fills advisory titles, safety instructions, and disaster categories (`Flash Flood`, `Fire Emergency`, `Typhoon & Winds`, `Landslide`).
+- **Database Tracking**: Direct logging to Supabase `fb_posts_tracking` with live status tracking (`synced`, `queued`, `failed`).
+
+### 4. 🗺️ Enhanced Monitoring Map & Agency Operations Map
+- **Free Map Dragging & Panning**: Removed controlled center locks across maps to allow unrestricted panning and zooming.
+- **Resolved Ticket Filtering**: Automatically hides resolved/closed tickets (`status !== 'rescued' && status !== 'closed'`).
+- **Sonar Pulse Ping Rings**: Pulsating CSS sonar ping rings (`animate-ping`) around markers for `critical` and `high` severity emergency alerts.
+- **Proof Multi-Media Preview**: Renders proof attachments (images, videos, and emergency voice audio clips) in the detail popup card with a clickable **`View Full Details ↗`** modal window.
+- **Registered Agency GPS Routing**: Positions agency markers using registered GPS coordinates (`latitude`, `longitude`) and renders connecting road route lines to emergency scenes.
+
+### 5. ⚡ Performance & Interface Optimization
+- **Event-Driven Supabase Realtime**: Replaced aggressive 8-second polling in `FloatingIncidentWidget` with WebSocket push listeners for zero unnecessary network requests.
+- **Smart Action Dropdowns**: Viewport boundary calculation and scrollable max-height on `ActionMenu` to prevent dropdown overflow obscuring on the Incidents page.
+- **Postgres UUID Syntax Safety**: Automatic fallback handling for Postgres `22P02` UUID syntax constraints during agency dispatch assignments.
+
+---
+
 ## The Problem
 
 During disasters, critical information is fragmented across weather agencies, social media, emergency hotlines, local governments, and communities. As a result, responders spend valuable time gathering information instead of acting, while citizens struggle to know where danger exists and what to do next.
@@ -75,13 +106,15 @@ Public dashboard updated → Community stays informed
 |---|---|
 | **Multi-channel Intake** | Citizens report via Facebook Messenger, Telegram, WhatsApp, or the embedded web widget |
 | **AI Extraction** | OpenAI extracts disaster type, location, severity, and people affected from raw messages |
+| **Typhoon Warning Simulator** | Category 4 typhoon simulation with distance/ETA route telemetry & satellite eyewall radar map overlay |
+| **Evacuation Center Modals** | Interactive shelter selection modal & full details modal with live capacity and Google Maps directions |
 | **Real-time Dashboard** | Live KPI cards, area/bar/pie charts, incident trend graphs, and a live activity feed |
-| **Monitoring Map** | Google Maps with real-time clustered incident markers colored by severity |
-| **Facebook Monitoring** | Sync FB page posts, flag AI-detected emergencies, reply via Messenger DMs |
+| **Monitoring Map** | Google Maps with real-time clustered incident markers, sonar pulse ping rings, and agency route lines |
+| **Facebook Broadcast Center** | AI pattern suggestion advisories, FB Page sync, Messenger DM replies, and `fb_posts_tracking` logging |
 | **Volunteer Management** | Track availability, skills, and equipment; auto-match volunteers to incidents |
 | **Donations** | Accept and track monetary and in-kind donations via PayMongo |
 | **Public Dashboard** | Geo-filtered public view with location detection and radius selector |
-| **Embeddable Widget** | Drop-in chat bubble for any barangay website |
+| **Embeddable Widget** | Drop-in chat bubble with event-driven Supabase Realtime updates |
 | **Role-based Access** | LGU, NGO, volunteer, and citizen roles |
 | **SMS / Email Alerts** | Automated status updates to reporters via Semaphore and Resend |
 
@@ -95,7 +128,7 @@ Public dashboard updated → Community stays informed
 | Styling | Tailwind CSS 4, Framer Motion |
 | State | Redux Toolkit |
 | Backend | Supabase (Postgres + Realtime + Auth + Edge Functions) |
-| Maps | Google Maps via `@vis.gl/react-google-maps` + MarkerClusterer |
+| Maps | Google Maps via `@vis.gl/react-google-maps` + Polyline route overlays |
 | Charts | Recharts |
 | AI | OpenAI GPT (via Supabase Edge Functions) |
 | Messaging | Facebook Messenger, Telegram Bot, WhatsApp Business API |
@@ -109,18 +142,19 @@ Public dashboard updated → Community stays informed
 ```
 src/
 ├── components/
-│   ├── incidents/       # IncidentCard, IncidentMap, FbMonitorPanel, MonitoringMapClusters
+│   ├── evacuation/      # EvacuationCenterDetailsModal, EvacuationSelectionModal
+│   ├── incidents/       # IncidentCard, IncidentMap, FbMonitorPanel, MonitoringMapClusters, HappeningsMapAlert
 │   ├── layout/lgu/      # LGUShell, LGUSidebar
-│   ├── shared/          # Modal, LoadingSpinner, EmptyState, MotionWrappers
+│   ├── shared/          # Modal, LoadingSpinner, EmptyState, FloatingIncidentWidget
 │   └── ui/              # Button, Input, Card
 ├── config/              # Nav items and role-based routing config
 ├── context/             # AuthContext, ModalContext
 ├── hooks/               # useIncidents, useDonations, useVolunteers, useFacebookPosts, useRealtime
-├── pages/               # Dashboard, Incidents, MonitoringMap, FbMonitor, Donations, Volunteers, Login, PublicDashboard, Settings
+├── pages/               # Dashboard, Incidents, MonitoringMap, FbMonitor, PublicHappenings, AgencyMap, Settings
 ├── redux/               # Store + slices (auth, incidents, donations)
 ├── routes/              # AppRouter, ProtectedRoute
-├── services/            # Supabase client, auth, incidents, donations, facebook, volunteers
-├── types/               # Incident, Donation, Volunteer, FbPost, User
+├── services/            # Supabase client, auth, incidents, advisories, evacuationCenters, responseAgencies
+├── types/               # Incident, Donation, Volunteer, FbPost, EvacuationCenter, User
 └── widget/              # Embeddable citizen chat widget
 supabase/
 ├── functions/           # Edge Functions (ai-extract, messenger-webhook, telegram-webhook, etc.)
@@ -168,81 +202,15 @@ VITE_GOOGLE_MAPS_API_KEY=<google-maps-api-key>
 
 ### 4. Run database migrations
 
-```bash
-pnpm supabase db push
-```
+Apply SQL scripts for `rescue_tickets`, `fb_posts_tracking`, and `evacuation_centers` via the Supabase SQL Editor.
 
-Or apply the SQL files in `supabase/migrations/` manually via the Supabase dashboard.
-
-### 5. Deploy Edge Functions
-
-```bash
-pnpm supabase functions deploy
-```
-
-Set backend secrets:
-
-```bash
-supabase secrets set --env-file .env
-```
-
-### 6. Start the dev server
+### 5. Start the dev server
 
 ```bash
 pnpm dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173)
-
----
-
-## Environment Variables
-
-| Variable | Description |
-|---|---|
-| `VITE_SUPABASE_URL` | Your Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (Edge Functions only) |
-| `OPENAI_API_KEY` | OpenAI key for AI extraction |
-| `FB_PAGE_ACCESS_TOKEN` | Facebook Page access token |
-| `FB_VERIFY_TOKEN` | Facebook webhook verify token |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
-| `WHATSAPP_TOKEN` | WhatsApp Business API token |
-| `PAYMONGO_SECRET_KEY` | PayMongo secret key |
-| `SMS_API_KEY` | Semaphore SMS API key |
-| `RESEND_API_KEY` | Resend email API key |
-
-See `.env.example` for the full list.
-
----
-
-## Facebook OAuth (Login)
-
-1. Create a Facebook App at [developers.facebook.com](https://developers.facebook.com)
-2. Enable **Facebook** as an OAuth provider in your Supabase dashboard under **Authentication → Providers**
-3. Add your Supabase callback URL to the Facebook App's Valid OAuth Redirect URIs:
-   ```
-   https://<project-ref>.supabase.co/auth/v1/callback
-   ```
-4. The login page opens Facebook auth in a centered popup window automatically.
-
----
-
-## Supabase Edge Functions
-
-| Function | Trigger | Description |
-|---|---|---|
-| `ai-extract` | DB insert | Extracts incident data from raw messages using OpenAI |
-| `messenger-webhook` | HTTP POST | Receives Facebook Messenger messages |
-| `telegram-webhook` | HTTP POST | Receives Telegram bot messages |
-| `whatsapp-webhook` | HTTP POST | Receives WhatsApp messages |
-| `match-volunteer` | Manual / DB | Matches available volunteers to incidents |
-| `notify-citizen` | DB update | Sends SMS/email status updates to reporters |
-| `process-donation` | HTTP POST | Handles PayMongo donation webhooks |
-| `post-advisory` | Manual | Posts public advisories to Facebook page |
-| `sync-fb-posts` | Cron | Syncs Facebook page posts for AI monitoring |
-| `sync-messenger-history` | Manual | Backfills Messenger conversation history |
 
 ---
 
@@ -255,15 +223,6 @@ pnpm build:widget # Build embeddable widget bundle
 pnpm lint         # Run Oxlint
 pnpm preview      # Preview production build
 ```
-
----
-
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Commit with a descriptive message
-4. Open a pull request
 
 ---
 
