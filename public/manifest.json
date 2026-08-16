@@ -38,6 +38,13 @@
   "description": "Real-time disaster risk telemetry and live incident feed app.",
   "shortcuts": [
     {
+      "name": "Report SOS Incident 🆘",
+      "short_name": "Report SOS",
+      "description": "File instant citizen disaster SOS emergency report",
+      "url": "/report",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
       "name": "Live Incident Widget 🚨",
       "short_name": "Widget",
       "description": "Open RescueLink AI Standalone Telemetry Widget",
@@ -56,13 +63,6 @@
       "short_name": "Dashboard",
       "description": "Open RescueLink AI Public Disaster Dashboard",
       "url": "/public",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
-      "name": "Report SOS Incident 🆘",
-      "short_name": "Report SOS",
-      "description": "File instant citizen disaster SOS emergency report",
-      "url": "/report",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

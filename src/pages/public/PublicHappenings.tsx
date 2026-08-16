@@ -180,17 +180,31 @@ export default function PublicHappenings() {
               RescueLink AI <span className="hidden sm:inline">— Live Incident Widget</span>
             </span>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <Link
+              to="/report"
+              className="px-1.5 sm:px-2 py-1 text-[10px] font-black bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center gap-1 shadow-xs whitespace-nowrap"
+              title="Report Emergency Incident"
+            >
+              <FileText size={11} /> Report 🚨
+            </Link>
+            <Link
+              to="/public"
+              className="px-1.5 sm:px-2 py-1 text-[10px] font-black bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-1 shadow-xs whitespace-nowrap"
+              title="Public Dashboard"
+            >
+              <Activity size={11} /> Dashboard 📊
+            </Link>
             <Link
               to="/login"
-              className="px-2 py-1 text-[10px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-md transition-colors flex items-center gap-1"
+              className="px-1.5 sm:px-2 py-1 text-[10px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-md transition-colors flex items-center gap-1 whitespace-nowrap"
               title="RescueLink Login"
             >
               <Lock size={11} /> Login 🔑
             </Link>
             <button
               onClick={() => window.location.reload()}
-              className="px-2 py-1 text-[10px] font-extrabold bg-purple-800 hover:bg-purple-700 text-amber-300 rounded-md transition-colors cursor-pointer"
+              className="px-1.5 sm:px-2 py-1 text-[10px] font-extrabold bg-purple-800 hover:bg-purple-700 text-amber-300 rounded-md transition-colors cursor-pointer whitespace-nowrap"
             >
               Refresh 🔄
             </button>
