@@ -57,27 +57,33 @@ export default function AgencySidebar({ collapsed, mobileOpen, onCloseMobile }: 
 
       {/* ── Brand header ── */}
       <div
-        className="flex shrink-0 items-center justify-between"
-        style={{ borderBottom: '1px solid #f0f0f0', padding: expanded ? '12px 12px' : '0 8px', minHeight: expanded ? 84 : 56 }}
+        className="flex shrink-0 items-center justify-between border-b border-gray-100 px-3.5 py-3 min-h-[64px]"
       >
-        {expanded ? (
-          <div className="flex flex-1 flex-col items-center justify-center">
-            <img src={mainLogo} alt="RescueLink AI" className="shrink-0 object-contain" style={{ width: 44, height: 44, borderRadius: 8 }} />
+        {isMobile ? (
+          <div className="flex items-center gap-3 pr-8 min-w-0">
+            <img src={mainLogo} alt="RescueLink AI" className="h-9 w-9 shrink-0 rounded-lg object-cover shadow-2xs" />
+            <div className="min-w-0">
+              <p className="text-xs font-black tracking-tight text-gray-900 truncate">RescueLink AI</p>
+              <p className="text-[10px] font-extrabold text-red-700 uppercase tracking-wider truncate">Agency Portal</p>
+            </div>
+          </div>
+        ) : expanded ? (
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
+            <img src={mainLogo} alt="RescueLink AI" className="h-11 w-11 shrink-0 rounded-xl object-cover shadow-xs" />
             <p className="mt-1 text-xs font-extrabold tracking-tight text-gray-900">RescueLink AI</p>
             <p className="text-[9px] font-bold text-red-700 uppercase tracking-wider">Response Agency Portal</p>
           </div>
         ) : (
           <div className="flex w-full items-center justify-center">
-            <img src={mainLogo} alt="RescueLink AI" className="shrink-0 object-contain" style={{ width: 28, height: 28, borderRadius: 6 }} />
+            <img src={mainLogo} alt="RescueLink AI" className="h-7 w-7 shrink-0 rounded-md object-cover" />
           </div>
         )}
         {isMobile && (
           <button
             onClick={onCloseMobile}
-            className="absolute right-3 top-3 flex size-7 items-center justify-center text-gray-400 transition-colors hover:text-gray-700"
-            style={{ borderRadius: 5 }}
+            className="absolute right-3 top-3.5 flex size-8 items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         )}
       </div>

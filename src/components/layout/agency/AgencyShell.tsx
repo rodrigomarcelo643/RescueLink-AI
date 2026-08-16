@@ -98,8 +98,8 @@ export default function AgencyShell() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="flex h-14 shrink-0 items-center justify-between bg-white px-4 border-b border-gray-200 shadow-2xs">
-          <div className="flex items-center gap-3">
+        <header className="flex h-14 shrink-0 items-center justify-between bg-white px-2.5 sm:px-4 border-b border-gray-200 shadow-2xs gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             <button
               onClick={() => setCollapsed((c) => !c)}
               className="hidden size-8 items-center justify-center text-gray-500 hover:text-gray-900 lg:flex rounded"
@@ -109,17 +109,20 @@ export default function AgencyShell() {
             </button>
             <button
               onClick={() => setMobileOpen(true)}
-              className="flex size-8 items-center justify-center text-gray-500 hover:text-gray-900 lg:hidden rounded"
+              className="flex size-8 items-center justify-center text-gray-500 hover:text-gray-900 lg:hidden rounded shrink-0"
+              title="Open Sidebar Menu"
             >
               <PanelLeftOpen size={18} />
             </button>
-            <span className="text-sm font-extrabold tracking-tight text-gray-900">{pageTitle}</span>
+            <span className="text-xs sm:text-sm font-extrabold tracking-tight text-gray-900 truncate">
+              {pageTitle}
+            </span>
           </div>
 
           {/* Operational Readiness Status Switcher */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md border border-gray-200">
-              <span className="text-[10px] uppercase text-gray-400 font-extrabold px-1.5 hidden sm:inline">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 p-0.5 sm:p-1 rounded-md border border-gray-200">
+              <span className="text-[10px] uppercase text-gray-400 font-extrabold px-1.5 hidden md:inline">
                 Status:
               </span>
               {(Object.keys(STATUS_CONFIG) as ReadinessStatus[]).map((s) => (
@@ -128,7 +131,7 @@ export default function AgencyShell() {
                   type="button"
                   disabled={statusUpdating}
                   onClick={() => handleReadinessChange(s)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-extrabold transition-all disabled:opacity-60 ${
+                  className={`px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-extrabold transition-all disabled:opacity-60 whitespace-nowrap ${
                     readiness === s ? STATUS_CONFIG[s].active : STATUS_CONFIG[s].idle
                   }`}
                 >
