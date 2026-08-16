@@ -7,7 +7,6 @@ import { useAuth } from '@/context/AuthContext'
 import { AlertTriangle, Lock, Eye, EyeOff, User } from 'lucide-react'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { FadeUp, FadeIn } from '@/components/shared/MotionWrappers'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -17,6 +16,64 @@ const STATS = [
   { n: '3+',   d: 'Channels'  },
   { n: 'AI',   d: 'Powered'   },
 ]
+
+function FloatingBottomBorderInput({
+  label,
+  type = 'text',
+  value,
+  onChange,
+  icon,
+  endAdornment,
+  required,
+}: {
+  label: string
+  type?: string
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  icon?: React.ReactNode
+  endAdornment?: React.ReactNode
+  required?: boolean
+}) {
+  const [focused, setFocused] = useState(false)
+  const isFloating = focused || value.length > 0
+
+  return (
+    <div className="relative pt-4">
+      <div
+        className={`flex items-center gap-2.5 pb-1.5 border-b-2 transition-colors ${
+          focused ? 'border-red-700' : 'border-gray-200'
+        }`}
+      >
+        {icon && (
+          <span className={`shrink-0 transition-colors ${focused ? 'text-red-700' : 'text-gray-400'}`}>
+            {icon}
+          </span>
+        )}
+        <div className="relative flex-1">
+          <label
+            className={`absolute left-0 transition-all duration-200 pointer-events-none ${
+              isFloating
+                ? '-top-4 text-[11px] font-black uppercase tracking-wider text-red-700'
+                : 'top-0 text-sm font-semibold text-gray-400'
+            }`}
+          >
+            {label}
+          </label>
+          <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            required={required}
+            className="w-full bg-transparent text-sm font-bold text-gray-900 outline-none"
+          />
+        </div>
+        {endAdornment && <span className="shrink-0 text-gray-400 hover:text-gray-600 transition-colors">{endAdornment}</span>}
+      </div>
+    </div>
+  )
+}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -70,11 +127,11 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white font-sans">
+    <div className="flex min-h-screen bg-white font-sans text-gray-900">
 
       {/* ── Left panel ── */}
       <motion.div
-        className="relative hidden w-[48%] flex-col items-center justify-center gap-8 bg-white p-16 lg:flex"
+        className="relative hidden w-[48%] flex-col items-center justify-center gap-8 bg-white p-12 lg:flex"
         style={{ borderRight: '1px solid #f0f0f0' }}
         initial={{ opacity: 0, x: -30 }}
         animate={{ opacity: 1, x: 0 }}
@@ -83,7 +140,7 @@ export default function Login() {
         <motion.img
           src={mainLogo}
           alt="RescueLink AI"
-          className="w-64 object-contain"
+          className="w-60 object-contain"
           style={{ borderRadius: 12 }}
           initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -121,64 +178,62 @@ export default function Login() {
         </FadeIn>
       </motion.div>
 
-      {/* ── Right panel ── */}
-      <div className="flex flex-1 items-center justify-center bg-white px-8 py-16">
-        <div className="w-full max-w-[500px]">
+      {/* ── Right panel (Fully Responsive & Wider Form) ── */}
+      <div className="flex flex-1 items-center justify-center bg-white px-4 sm:px-8 py-8 sm:py-16">
+        <div className="w-full max-w-[560px]">
 
           {/* Mobile logo */}
           <motion.div
-            className="mb-8 flex flex-col items-center gap-3 lg:hidden"
+            className="mb-6 flex flex-col items-center gap-3 lg:hidden"
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease }}
           >
-            <img src={mainLogo} alt="RescueLink AI" className="w-28 object-contain" style={{ borderRadius: 8 }} />
+            <img src={mainLogo} alt="RescueLink AI" className="w-24 object-contain" style={{ borderRadius: 8 }} />
           </motion.div>
 
           {/* Heading */}
-          <FadeUp delay={0.1} className="mb-7 text-center lg:text-left">
+          <FadeUp delay={0.1} className="mb-6 text-center lg:text-left">
             <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Welcome back</h2>
-            <p className="mt-1.5 text-sm text-gray-400">Sign in to your account to continue</p>
+            <p className="mt-1 text-sm text-gray-400">Sign in to your account to continue</p>
           </FadeUp>
 
           {/* Form card */}
           <motion.div
-            className="bg-white p-6"
+            className="bg-white p-7 sm:p-8 shadow-xs"
             style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.18, ease }}
           >
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
               <FadeUp delay={0.26}>
-                <Input
-                  label="Email or Agency Username *"
+                <FloatingBottomBorderInput
+                  label="Username"
                   type="text"
-                  placeholder="you@rescuelink.ph or bfp_labangon"
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
-                  icon={<User size={14} />}
+                  icon={<User size={16} />}
                   required
                 />
               </FadeUp>
 
               <FadeUp delay={0.32}>
-                <Input
+                <FloatingBottomBorderInput
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  icon={<Lock size={14} />}
+                  icon={<Lock size={16} />}
                   endAdornment={
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       tabIndex={-1}
-                      className="transition-colors hover:text-gray-500"
+                      className="transition-colors text-gray-400 hover:text-gray-600 cursor-pointer"
                     >
-                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   }
                   required
@@ -189,15 +244,14 @@ export default function Login() {
               <AnimatePresence>
                 {error && (
                   <motion.div
-                    className="flex items-start gap-2 px-3 py-2.5"
-                    style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 5 }}
+                    className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg"
                     initial={{ opacity: 0, y: -6, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, y: -4, height: 0 }}
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                   >
-                    <AlertTriangle size={13} className="mt-px shrink-0 text-red-600" />
-                    <p className="text-[12px] font-semibold text-red-600">{error}</p>
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0 text-red-600" />
+                    <p className="text-xs font-semibold text-red-600">{error}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -210,9 +264,9 @@ export default function Login() {
 
               <FadeUp delay={0.40}>
                 <div className="flex items-center gap-3">
-                  <div className="h-px flex-1" style={{ background: '#e5e7eb' }} />
-                  <span className="text-[11px] text-gray-400">or</span>
-                  <div className="h-px flex-1" style={{ background: '#e5e7eb' }} />
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-xs text-gray-400 font-medium">or</span>
+                  <div className="h-px flex-1 bg-gray-200" />
                 </div>
               </FadeUp>
 
@@ -220,7 +274,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={handleGoogle}
-                  className="flex w-full items-center justify-center gap-2.5 py-2.5 px-4 text-sm font-extrabold text-gray-800 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg shadow-2xs transition-all cursor-pointer"
+                  className="flex w-full items-center justify-center gap-2.5 py-2.5 px-4 text-sm font-extrabold text-gray-800 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl shadow-2xs transition-all cursor-pointer"
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -235,7 +289,7 @@ export default function Login() {
               <FadeUp delay={0.42} className="text-center">
                 <Link
                   to="/forgot-password"
-                  className="text-[12px] font-semibold text-gray-400 underline underline-offset-4 transition-colors hover:text-red-700"
+                  className="text-xs font-semibold text-gray-400 underline underline-offset-4 transition-colors hover:text-red-700"
                 >
                   Forgot password?
                 </Link>
