@@ -14,7 +14,7 @@ import {
   TrendingUp, Activity, MapPin, ShieldAlert, ShieldCheck, ChevronRight,
 } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, Legend,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 
@@ -173,6 +173,79 @@ export default function Dashboard() {
     color: SEVERITY_COLOR[s],
   }))
 
+  // ── Weekly Progress of Responding Speed Line Graph ─────────────────────
+  const weeklyResponseProgress = useMemo(() => {
+    const weeks = [
+      { label: '3 Wks Ago', offsetStart: 28, offsetEnd: 21 },
+      { label: '2 Wks Ago', offsetStart: 21, offsetEnd: 14 },
+      { label: 'Last Wk', offsetStart: 14, offsetEnd: 7 },
+      { label: 'This Wk', offsetStart: 7, offsetEnd: 0 },
+    ]
+
+    const now = new Date()
+
+    return weeks.map(({ label, offsetStart, offsetEnd }) => {
+      const start = new Date(now)
+      start.setDate(start.getDate() - offsetStart)
+      const end = new Date(now)
+      end.setDate(end.getDate() - offsetEnd)
+
+      const weekIncidents = incidents.filter((i) => {
+        const d = new Date(i.created_at)
+        return d >= start && d <= end
+      })
+
+      const stats = calculateOverallResponseStats(weekIncidents)
+
+      return {
+        week: label,
+        dispatchMins: stats.avgDispatchMinutes,
+        rescueMins: stats.avgResolutionMinutes,
+        ticketCount: weekIncidents.length,
+      }
+    })
+  }, [incidents])
+
+  // ── Doughnut Data for Elapsed Response Status ──────────────────────────
+  const doughnutData = useMemo(() => {
+    let pendingCount = 0
+    let activeSLAOK = 0
+    let activeSLADelayed = 0
+    let resolvedCount = 0
+
+    const now = Date.now()
+
+    filtered.forEach((i) => {
+      if (i.status === 'pending') {
+        pendingCount++
+      } else if (i.status === 'responding') {
+        const createdMs = new Date(i.created_at).getTime()
+        const elapsedMins = (now - createdMs) / 60000
+        if (elapsedMins <= 10) {
+          activeSLAOK++
+        } else {
+          activeSLADelayed++
+        }
+      } else if (i.status === 'rescued' || i.status === 'closed') {
+        resolvedCount++
+      }
+    })
+
+    const items = [
+      { name: 'Pending Dispatch', value: pendingCount, color: '#f59e0b' },
+      { name: 'En Route (<10m SLA)', value: activeSLAOK, color: '#22c55e' },
+      { name: 'En Route (>10m Delayed)', value: activeSLADelayed, color: '#ef4444' },
+      { name: 'Rescued / Closed', value: resolvedCount, color: '#3b82f6' },
+    ]
+
+    const total = items.reduce((s, x) => s + x.value, 0)
+    if (total === 0) {
+      return [{ name: 'No Active Dispatches', value: 1, color: '#9ca3af' }]
+    }
+
+    return items.filter((x) => x.value > 0)
+  }, [filtered])
+
   // ── Recent activity ───────────────────────────────────────────────────
   const recent = [...filtered].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -296,6 +369,112 @@ export default function Dashboard() {
               {responseStats.fastestDispatchMinutes > 0 ? `${responseStats.fastestDispatchMinutes}m` : 'N/A'}
             </p>
             <span className="text-[10px] font-medium text-blue-600">Best Agency Acceptance Record</span>
+          </div>
+        </div>
+
+        {/* ── Donut & Line Graphs: Response Speed Progress Telemetry ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
+          {/* Doughnut Chart: Elapsed Response SLA Breakdown */}
+          <div className="p-3.5 bg-gray-50/70 rounded-xl border border-gray-200/80 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                  <Activity size={13} className="text-purple-600" /> Elapsed Response SLA (Doughnut)
+                </h4>
+                <p className="text-[10px] text-gray-500 font-medium">Real-time status breakdown & SLA delay telemetry</p>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-gray-600 bg-white px-2 py-0.5 rounded border border-gray-200">
+                {doughnutData.reduce((s, x) => s + x.value, 0)} Total
+              </span>
+            </div>
+
+            <div className="relative h-48 w-full flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={doughnutData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={70}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {doughnutData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px', fontWeight: 'bold', border: 'none' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-lg font-black text-gray-900">{responseStats.slaPerformancePercentage}%</span>
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">SLA Met</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-gray-200/60 text-[10px] font-bold">
+              {doughnutData.map((d) => (
+                <div key={d.name} className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full shrink-0" style={{ background: d.color }} />
+                  <span className="text-gray-600 truncate">{d.name}:</span>
+                  <span className="text-gray-900 font-extrabold ml-auto">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Line Chart: Weekly Progress of Responding Speed */}
+          <div className="p-3.5 bg-gray-50/70 rounded-xl border border-gray-200/80 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                  <TrendingUp size={13} className="text-emerald-600" /> Weekly Response Progress (Line Graph)
+                </h4>
+                <p className="text-[10px] text-gray-500 font-medium">Monitoring weekly acceleration in agency response speed</p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Faster Response ⚡
+              </span>
+            </div>
+
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyResponseProgress} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} stroke="#cbd5e1" />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} stroke="#cbd5e1" unit="m" />
+                  <Tooltip
+                    contentStyle={{ background: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px', fontWeight: 'bold', border: 'none' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '4px', fontWeight: 'bold' }} />
+                  <Line
+                    type="monotone"
+                    dataKey="dispatchMins"
+                    name="Avg Dispatch (mins)"
+                    stroke="#8b5cf6"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#8b5cf6' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rescueMins"
+                    name="Avg Total Rescue (mins)"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#10b981' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="text-[10px] font-semibold text-gray-500 flex items-center justify-between pt-2 border-t border-gray-200/60">
+              <span>📉 Lower numbers indicate faster response time</span>
+              <span className="text-purple-700 font-bold">Goal: Continual weekly reduction</span>
+            </div>
           </div>
         </div>
       </div>
