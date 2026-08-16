@@ -55,7 +55,7 @@ function FloatingBottomBorderInput({
           <label
             className={`absolute left-0 transition-all duration-200 pointer-events-none ${
               isFloating
-                ? '-top-4 text-[11px] font-black uppercase tracking-wider text-red-700'
+                ? '-top-4 text-[11px] font-bold text-red-700'
                 : 'top-0 text-sm font-semibold text-gray-400'
             }`}
           >
