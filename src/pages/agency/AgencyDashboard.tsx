@@ -139,7 +139,7 @@ export default function AgencyDashboard() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
-        (payload) => {
+        () => {
           fetchAssignedIncidents(false)
           playCriticalAlertSound()
         }
