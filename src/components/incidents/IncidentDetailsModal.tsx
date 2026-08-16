@@ -81,6 +81,7 @@ export default function IncidentDetailsModal({
 
   if (!incident) return null
 
+  const metrics = calculateTicketResponseMetrics(incident)
   const lguDisplayName = lguOrg?.lgu_name || (profile?.municipality ? `LGU ${profile.municipality} Command Center` : 'LGU Emergency Command Center')
   const lguAddress = lguOrg?.office_address || profile?.municipality || 'LGU Command Headquarters'
   const lguHotline = lguOrg?.emergency_hotline || profile?.phone || 'Hotline 911'
