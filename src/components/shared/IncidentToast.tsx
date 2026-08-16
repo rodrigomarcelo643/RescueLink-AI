@@ -4,6 +4,7 @@ import type { Incident } from '@/types/incident'
 import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import { matchNearestAgency, type AgencyMatchResult } from '@/services/agencyMatcher.service'
 import { assignAgencyToIncident } from '@/services/incidents.service'
+import { playCriticalAlertSound } from '@/utils/alertSound'
 import {
   ShieldAlert, AlertTriangle, Info, CheckCircle,
   MapPin, Users, X, Eye, Clock, Phone, Sparkles, Send
@@ -252,13 +253,24 @@ interface IncidentToastProps {
 export default function IncidentToast({ toasts, onDismiss, onStatusChange }: IncidentToastProps) {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null)
 
-  // Play audio alert sound when new toast is pushed
+  // Play audio alert sound every 2 seconds if toasts exist and are not closed
   useEffect(() => {
-    if (toasts.length > 0) {
+    if (toasts.length === 0) return
+
+    const triggerSound = () => {
       const latest = toasts[toasts.length - 1]
+      playCriticalAlertSound()
       playAlertSound(latest.incident.severity)
     }
-  }, [toasts.length])
+
+    triggerSound()
+
+    const interval = setInterval(() => {
+      triggerSound()
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [toasts.length, toasts])
 
   return (
     <>

@@ -20,6 +20,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 
 import { recordAgencyStartLocation, startLiveAgencyGPSTracking } from '@/services/agencyLocationTracker.service'
+import { playCriticalAlertSound } from '@/utils/alertSound'
 
 const SEVERITY_COLOR: Record<Incident['severity'], { bg: string; text: string; border: string }> = {
   critical: { bg: '#fef2f2', text: '#b91c1c', border: '#fecaca' },
@@ -137,7 +138,15 @@ export default function AgencyDashboard() {
       .channel(channelName)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'rescue_tickets' },
+        { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
+        (payload) => {
+          fetchAssignedIncidents(false)
+          playCriticalAlertSound()
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rescue_tickets' },
         () => { fetchAssignedIncidents(false) }
       )
       .subscribe()

@@ -6,6 +6,7 @@ import IncidentToast, { type ToastItem } from '@/components/shared/IncidentToast
 import { supabase } from '@/services/supabase'
 import { updateIncidentStatus } from '@/services/incidents.service'
 import { updateIncident, addIncident } from '@/redux/slices/incidentSlice'
+import { playCriticalAlertSound } from '@/utils/alertSound'
 import { useDispatch, useSelector } from 'react-redux'
 import type { RootState } from '@/redux/store'
 import type { Incident } from '@/types/incident'
@@ -46,6 +47,7 @@ export default function LGUShell() {
       timestamp: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }),
     }
     setToasts((prev) => [newToast, ...prev].slice(0, 5)) // keep max 5 active toasts
+    playCriticalAlertSound()
   }, [])
 
   // Supabase Realtime Listener for new rescue tickets & agency acceptance/declination updates

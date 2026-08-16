@@ -5,6 +5,7 @@ import { setIncidents, addIncident, updateIncident, setLoading } from '@/redux/s
 import { supabase } from '@/services/supabase'
 import type { RootState } from '@/redux/store'
 import type { Incident } from '@/types/incident'
+import { playCriticalAlertSound } from '@/utils/alertSound'
 
 export function useIncidents() {
   const dispatch = useDispatch()
@@ -20,7 +21,13 @@ export function useIncidents() {
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rescue_tickets' },
-        (payload) => dispatch(addIncident(payload.new as Incident))
+        (payload) => {
+          const newTicket = payload.new as Incident
+          dispatch(addIncident(newTicket))
+          if (newTicket && (newTicket.severity === 'critical' || newTicket.severity === 'high')) {
+            playCriticalAlertSound()
+          }
+        }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rescue_tickets' },
         (payload) => dispatch(updateIncident(payload.new as Incident))
