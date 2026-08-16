@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react'
 import {
   ExternalLink, AlertTriangle, CheckCircle, Clock, Flag, MessageCircle,
-  Sparkles, Send, Radio, Megaphone, Share2, ShieldAlert, FileText, CheckCircle2, RefreshCw
+  Sparkles, Send, Radio, Megaphone, Share2, CheckCircle2, RefreshCw,
+  Layers, Zap, X, Plus
 } from 'lucide-react'
 import { useFacebookPosts } from '@/hooks/useFacebookPosts'
 import { useMessengerTickets } from '@/hooks/useMessengerTickets'
 import { convertFbPostToTicket } from '@/services/facebook.service'
 import { getIncidents } from '@/services/incidents.service'
 import {
-  getAdvisories,
+  getFbPostsTracking,
   createAndPublishAdvisory,
-  generateAIAdvisoryFromIncidents,
-  type PublicAdvisoryItem
+  generateAIPatternSuggestions,
+  type FbPostTrackingRecord,
+  type AIPatternSuggestion
 } from '@/services/advisories.service'
 import { useModal } from '@/context/ModalContext'
 import type { MessengerConversation } from '@/hooks/useMessengerTickets'
@@ -72,52 +74,69 @@ export default function FbMonitorPanel() {
   const { openModal } = useModal()
 
   const [incidents, setIncidents] = useState<Incident[]>([])
-  const [advisories, setAdvisories] = useState<PublicAdvisoryItem[]>([])
-  const [advisoriesLoading, setAdvisoriesLoading] = useState(true)
+  const [trackedPosts, setTrackedPosts] = useState<FbPostTrackingRecord[]>([])
+  const [suggestions, setSuggestions] = useState<AIPatternSuggestion[]>([])
+  const [loadingTracking, setLoadingTracking] = useState(true)
 
-  // Advisory Form State
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Form State
   const [title, setTitle] = useState('')
-  const [type, setType] = useState('Flash Flood')
+  const [category, setCategory] = useState('Flash Flood')
   const [severity, setSeverity] = useState('high')
   const [body, setBody] = useState('')
+  const [patternReason, setPatternReason] = useState('')
   const [publishing, setPublishing] = useState(false)
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
 
   const [converting, setConverting] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'advisories' | 'all' | 'flagged' | 'converted' | 'messenger'>('advisories')
+  const [filter, setFilter] = useState<'fb_sync' | 'all' | 'flagged' | 'converted' | 'messenger'>('fb_sync')
   const [page, setPage] = useState(1)
   const [dmPage, setDmPage] = useState(1)
 
   const loading = postsLoading || ticketsLoading
 
   useEffect(() => {
-    // Fetch recent live incidents for AI Advisory Generator
-    getIncidents().then((list) => setIncidents(list))
-
-    // Fetch published advisories
-    loadAdvisories()
+    loadTrackingData()
   }, [])
 
-  const loadAdvisories = async () => {
-    setAdvisoriesLoading(true)
+  const loadTrackingData = async () => {
+    setLoadingTracking(true)
     try {
-      const list = await getAdvisories()
-      setAdvisories(list)
+      const incList = await getIncidents()
+      setIncidents(incList)
+
+      const aiSugg = generateAIPatternSuggestions(incList)
+      setSuggestions(aiSugg)
+
+      if (aiSugg.length > 0 && !title) {
+        setTitle(aiSugg[0].title)
+        setCategory(aiSugg[0].category)
+        setSeverity(aiSugg[0].severity)
+        setBody(aiSugg[0].body)
+        setPatternReason(aiSugg[0].patternReason)
+      }
+
+      const tracked = await getFbPostsTracking()
+      setTrackedPosts(tracked)
     } finally {
-      setAdvisoriesLoading(false)
+      setLoadingTracking(false)
     }
   }
 
-  // 🪄 AI Auto-Generate Advisory Handler
-  const handleAIGenerate = () => {
-    const aiAdvisory = generateAIAdvisoryFromIncidents(incidents)
-    setTitle(aiAdvisory.title)
-    setType(aiAdvisory.type)
-    setSeverity(aiAdvisory.severity)
-    setBody(aiAdvisory.body)
+  // Adopt AI Recommended Pattern Suggestion & Open Modal
+  const handleAdoptSuggestion = (sugg: AIPatternSuggestion) => {
+    setTitle(sugg.title)
+    setCategory(sugg.category)
+    setSeverity(sugg.severity)
+    setBody(sugg.body)
+    setPatternReason(sugg.patternReason)
+    setPublishSuccess(null)
+    setIsModalOpen(true)
   }
 
-  // 📢 Publish & Facebook Sync Handler
+  // Publish & Sync to Facebook Page
   const handlePublishAdvisory = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !body.trim()) return
@@ -129,22 +148,29 @@ export default function FbMonitorPanel() {
       const res = await createAndPublishAdvisory({
         title,
         body,
-        type,
+        type: category,
         severity,
+        patternSummary: patternReason,
       })
 
       if (res.syncedToFacebook) {
-        setPublishSuccess('Published successfully & Synced to Facebook Page! ✅')
+        setPublishSuccess(`Published & Synced to Facebook Page! ✅ (Post ID: ${res.fbPostId})`)
       } else {
-        setPublishSuccess('Published to Public Emergency Portal & Queued for Facebook Sync! 🌐')
+        setPublishSuccess(`Published to Public Portal & Recorded in System! 🌐 (${res.syncStatusNote})`)
       }
 
-      // Reset form & reload advisories list
-      setTitle('')
-      setBody('')
-      await loadAdvisories()
+      // Reload tracking list from Supabase
+      await loadTrackingData()
+
+      // Close modal after brief delay
+      setTimeout(() => {
+        setIsModalOpen(false)
+        setTitle('')
+        setBody('')
+        setPatternReason('')
+      }, 1500)
     } catch (err: any) {
-      alert(`Publishing notice: ${err?.message || 'Advisory published locally'}`)
+      alert(`Publishing notice: ${err?.message || 'Advisory published'}`)
     } finally {
       setPublishing(false)
     }
@@ -167,7 +193,7 @@ export default function FbMonitorPanel() {
   const handleConvert = (post: FbPost) => {
     openModal({
       title: 'Create Incident Ticket',
-      description: 'This will create a new rescue ticket from this Facebook post. You can edit details after.',
+      description: 'This will create a new rescue ticket from this Facebook post.',
       icon: <Flag size={20} className="text-red-600" />,
       confirmLabel: 'Create Ticket',
       danger: false,
@@ -182,200 +208,191 @@ export default function FbMonitorPanel() {
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Header & Tab Selector */}
-      <div className="flex flex-col gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-2xs">
+      {/* Header & Main Navigation Tabs */}
+      <div className="flex flex-col gap-3 bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-2xs">
-              <Megaphone size={18} />
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-2xs">
+              <Megaphone size={20} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-gray-900">Public Advisories & Facebook Broadcast Center</h2>
-              <p className="text-xs text-gray-500">Post disaster warnings, sync to Facebook Page, and monitor citizen posts</p>
+              <h2 className="text-base font-extrabold text-gray-900">Facebook Broadcast & AI Pattern Intelligence Center</h2>
+              <p className="text-xs text-gray-500">Auto-generate disaster advisories from {incidents.length} live incident patterns & sync to Facebook Page</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             {flaggedCount > 0 && (
-              <span className="px-2.5 py-1 text-xs font-black text-white bg-red-700 rounded-full shadow-2xs">
-                {flaggedCount} Flagged FB Posts
+              <span className="px-3 py-1.5 text-xs font-black text-white bg-red-600 rounded-xl shadow-2xs flex items-center gap-1">
+                <AlertTriangle size={13} /> {flaggedCount} Flagged Post{flaggedCount > 1 ? 's' : ''}
               </span>
             )}
-            {conversations.length > 0 && (
-              <span className="px-2.5 py-1 text-xs font-black text-white bg-blue-600 rounded-full shadow-2xs">
-                {conversations.length} Messenger DMs
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={() => { setPublishSuccess(null); setIsModalOpen(true) }}
+              className="px-4 py-2 text-xs font-black text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            >
+              <Plus size={15} /> New Facebook Broadcast 📢
+            </button>
           </div>
         </div>
 
-        {/* Tab Filters */}
+        {/* Tab Switcher */}
         <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-          {(['advisories', 'all', 'flagged', 'converted', 'messenger'] as const).map((f) => (
+          {(['fb_sync', 'all', 'flagged', 'converted', 'messenger'] as const).map((f) => (
             <button
               key={f}
               onClick={() => { setFilter(f); setPage(1); setDmPage(1) }}
-              className={`px-3 py-1.5 text-xs font-extrabold capitalize rounded-lg transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 text-xs font-extrabold capitalize rounded-lg transition-all cursor-pointer ${
                 filter === f
-                  ? 'bg-purple-900 text-white shadow-xs'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
               }`}
             >
-              {f === 'advisories' ? '📢 Public Advisories & FB Sync' : f === 'messenger' ? '💬 Messenger DMs' : `FB ${f}`}
+              {f === 'fb_sync' ? '📢 Facebook Broadcast & AI Patterns' : f === 'messenger' ? '💬 Messenger DMs' : `FB ${f}`}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Tab 1: Public Advisories & FB Sync Publisher ── */}
-      {filter === 'advisories' && (
+      {/* ── Tab 1: Facebook Broadcast & AI Patterns ── */}
+      {filter === 'fb_sync' && (
         <div className="flex flex-col gap-6">
 
-          {/* AI-Powered Emergency Advisory Composer */}
-          <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white p-5 sm:p-6 rounded-2xl border border-purple-800 shadow-md flex flex-col gap-4">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-purple-800/60">
+          {/* AI Recommended Incident Pattern Advisories */}
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles size={18} className="text-yellow-400 animate-pulse" />
-                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
-                  Create Emergency Public Advisory & Post to Facebook
-                </h3>
+                <div className="p-1.5 bg-yellow-100 text-amber-700 rounded-lg">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">
+                    AI Pattern Suggestions (Based on Recent Incidents)
+                  </h3>
+                  <p className="text-[11px] font-semibold text-gray-500">
+                    AI detected high-frequency emergency clusters across active incident reports
+                  </p>
+                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={handleAIGenerate}
-                className="px-3.5 py-1.5 text-xs font-black text-slate-950 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 rounded-lg shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-              >
-                <Sparkles size={14} className="text-slate-950 fill-slate-950" />
-                AI Auto-Generate Advisory 🪄
-              </button>
+              <span className="text-[11px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                {suggestions.length} Patterns Detected
+              </span>
             </div>
 
-            <form onSubmit={handlePublishAdvisory} className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1 block">
-                    Advisory Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. PUBLIC DISASTER ADVISORY: Flash Flood Warning in Labangon"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-slate-800/80 text-white placeholder:text-gray-400 text-xs font-bold px-3 py-2 rounded-lg border border-purple-700/60 outline-none focus:border-yellow-400 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1 block">
-                    Category Type
-                  </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full bg-slate-800/80 text-white text-xs font-bold px-3 py-2 rounded-lg border border-purple-700/60 outline-none focus:border-yellow-400 transition-colors"
-                  >
-                    <option value="Flash Flood">🌊 Flash Flood</option>
-                    <option value="Typhoon & Winds">🌀 Typhoon & Winds</option>
-                    <option value="Fire Emergency">🔥 Fire Emergency</option>
-                    <option value="Landslide">⛰️ Landslide</option>
-                    <option value="General Safety">📢 General Safety</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1 block">
-                  Public Advisory Message *
-                </label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Enter official public disaster safety instructions, evacuation guidance, and emergency hotlines..."
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  className="w-full bg-slate-800/80 text-white placeholder:text-gray-400 text-xs font-medium px-3 py-2 rounded-lg border border-purple-700/60 outline-none focus:border-yellow-400 transition-colors leading-relaxed"
-                />
-              </div>
-
-              {publishSuccess && (
-                <div className="p-3 bg-emerald-950/90 border border-emerald-500/60 rounded-lg text-emerald-300 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                  <span>{publishSuccess}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-purple-800/60">
-                <span className="text-[11px] font-semibold text-purple-300 flex items-center gap-1.5">
-                  <Share2 size={13} className="text-blue-400" />
-                  Automatically posts to connected Facebook Page & Public Disaster Telemetry Portal
-                </span>
-
-                <button
-                  type="submit"
-                  disabled={publishing}
-                  className="px-5 py-2.5 text-xs font-black text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-xl shadow-lg border border-red-500/40 flex items-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {suggestions.map((sugg) => (
+                <div
+                  key={sugg.id}
+                  className="p-4 bg-gradient-to-b from-gray-50 to-amber-50/30 rounded-xl border border-gray-200 flex flex-col justify-between gap-3 hover:border-amber-400 transition-colors"
                 >
-                  <Send size={14} className={publishing ? 'animate-spin' : ''} />
-                  {publishing ? 'Publishing & Syncing…' : 'Publish & Sync to Facebook 📢'}
-                </button>
-              </div>
-            </form>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 rounded border border-amber-200">
+                        {sugg.category}
+                      </span>
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        {sugg.confidenceScore}% AI Match
+                      </span>
+                    </div>
+
+                    <h4 className="text-xs font-black text-gray-900 leading-snug line-clamp-2">{sugg.title}</h4>
+                    <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-3">{sugg.body}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-200/60 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold text-gray-500 truncate" title={sugg.patternReason}>
+                      📍 {sugg.affectedLocation} ({sugg.reportCount} reports)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleAdoptSuggestion(sugg)}
+                      className="px-2.5 py-1 text-[10px] font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 shrink-0 transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <Zap size={11} /> Use Draft
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Published Advisories List */}
+          {/* System Tracked Facebook Posts (from Supabase fb_posts_tracking) */}
           <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
-                <FileText size={16} className="text-purple-700" /> Published LGU Disaster Advisories ({advisories.length})
+                <Layers size={16} className="text-blue-600" /> System Recorded Facebook Broadcasts ({trackedPosts.length})
               </h3>
-              <button
-                type="button"
-                onClick={loadAdvisories}
-                className="text-xs font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1 cursor-pointer"
-              >
-                <RefreshCw size={12} className={advisoriesLoading ? 'animate-spin' : ''} /> Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setPublishSuccess(null); setIsModalOpen(true) }}
+                  className="px-3 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={13} /> Broadcast Modal
+                </button>
+                <button
+                  type="button"
+                  onClick={loadTrackingData}
+                  className="text-xs font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw size={12} className={loadingTracking ? 'animate-spin' : ''} /> Refresh
+                </button>
+              </div>
             </div>
 
-            {advisoriesLoading ? (
+            {loadingTracking ? (
               <div className="flex items-center justify-center py-10">
-                <div className="size-6 animate-spin rounded-full border-2 border-purple-700 border-t-transparent" />
+                <div className="size-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
               </div>
-            ) : advisories.length === 0 ? (
+            ) : trackedPosts.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10 text-center border border-dashed border-gray-200 rounded-xl">
                 <Megaphone size={24} className="text-gray-300" />
-                <p className="text-xs font-bold text-gray-500">No public advisories published yet</p>
-                <p className="text-[11px] text-gray-400">Use the composer above or click AI Auto-Generate to publish</p>
+                <p className="text-xs font-bold text-gray-500">No Facebook broadcasts recorded yet</p>
+                <p className="text-[11px] text-gray-400">Adopt an AI pattern suggestion above to publish your first post</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {advisories.map((adv) => (
-                  <div key={adv.id || adv.title} className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col gap-2">
+                {trackedPosts.map((post) => (
+                  <div key={post.id || post.title} className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col gap-2.5">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-purple-900 text-white rounded">
-                          {adv.type || 'Advisory'}
+                        <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-blue-900 text-white rounded">
+                          {post.category || 'Disaster Broadcast'}
                         </span>
-                        <h4 className="text-sm font-extrabold text-gray-900">{adv.title}</h4>
+                        <h4 className="text-sm font-extrabold text-gray-900">{post.title}</h4>
                       </div>
 
                       <div className="flex items-center gap-2 text-[11px] font-bold">
-                        {adv.synced_to_facebook ? (
-                          <span className="px-2 py-0.5 text-[10px] text-emerald-800 bg-emerald-100 rounded border border-emerald-200 flex items-center gap-1">
-                            <CheckCircle size={11} className="text-emerald-600" /> Synced to FB Page
+                        {post.fb_post_id ? (
+                          <span className="px-2 py-0.5 text-[10px] text-emerald-800 bg-emerald-100 rounded border border-emerald-300 flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-600" /> FB Synced ✅
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 text-[10px] text-blue-800 bg-blue-100 rounded border border-blue-200 flex items-center gap-1">
-                            <Radio size={11} className="text-blue-600" /> Public Portal Broadcast
+                            <Radio size={11} className="text-blue-600" /> Public Portal Broadcast 🌐
                           </span>
                         )}
-                        <span className="text-gray-400 font-mono">{timeAgo(adv.created_at)}</span>
+                        <span className="text-gray-400 font-mono">{timeAgo(post.created_at || post.synced_at)}</span>
                       </div>
                     </div>
 
-                    <p className="text-xs leading-relaxed text-gray-700">{adv.body}</p>
+                    <p className="text-xs leading-relaxed text-gray-700">{post.body}</p>
+
+                    <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-gray-200/80 text-[10px] font-semibold text-gray-500">
+                      <span className="flex items-center gap-1 text-blue-800">
+                        🤖 Auto-broadcasted via RescueLink AI Facebook Sync Engine
+                      </span>
+                      {post.fb_post_id ? (
+                        <span className="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          FB Post ID: {post.fb_post_id}
+                        </span>
+                      ) : (
+                        <span className="font-mono text-slate-600 bg-gray-200/60 px-2 py-0.5 rounded">
+                          Recorded in Supabase `fb_posts_tracking`
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -408,7 +425,7 @@ export default function FbMonitorPanel() {
       )}
 
       {/* ── Tab 3: Incoming Citizen Facebook Posts ── */}
-      {filter !== 'advisories' && filter !== 'messenger' && (loading ? (
+      {filter !== 'fb_sync' && filter !== 'messenger' && (loading ? (
         <div className="flex items-center justify-center py-10">
           <div className="size-5 animate-spin rounded-full border-2 border-gray-200" style={{ borderTopColor: '#b91c1c' }} />
         </div>
@@ -418,15 +435,7 @@ export default function FbMonitorPanel() {
           style={{ border: '1px dashed #e5e7eb', borderRadius: 5 }}
         >
           <CheckCircle size={18} className="text-gray-300" />
-          {posts.length === 0 ? (
-            <>
-              <p className="text-xs font-semibold text-gray-400">Page posts require App Review</p>
-              <p className="text-[11px] text-gray-400">Facebook requires <code>pages_read_engagement</code> permission.</p>
-              <p className="text-[11px] text-gray-400">Use the <strong>📢 Public Advisories</strong> tab to publish broadcasts.</p>
-            </>
-          ) : (
-            <p className="text-xs font-semibold text-gray-400">No {filter} posts</p>
-          )}
+          <p className="text-xs font-semibold text-gray-400">No {filter} posts</p>
         </div>
       ) : (
         <>
@@ -527,6 +536,115 @@ export default function FbMonitorPanel() {
           <Pagination page={page} totalPages={totalPostPages} total={filtered.length} onPage={setPage} />
         </>
       ))}
+
+      {/* ── Facebook Page Broadcast Publisher Modal ── */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-3xl border border-blue-700 shadow-2xl flex flex-col gap-4">
+            <div className="flex items-center justify-between pb-3 border-b border-blue-800/60">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-600/30 text-blue-400 rounded-xl border border-blue-600/50">
+                  <Megaphone size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white">Facebook Page Broadcast Publisher</h3>
+                  <p className="text-xs text-blue-300">Connected FB Page ID: 1232412116623460</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePublishAdvisory} className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-blue-300 mb-1 block">
+                    Broadcast Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. PUBLIC DISASTER ADVISORY: Flash Flood Warning"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full bg-slate-800/90 text-white placeholder:text-gray-400 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-blue-700/60 outline-none focus:border-blue-400 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-blue-300 mb-1 block">
+                    Disaster Category
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-slate-800/90 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-blue-700/60 outline-none focus:border-blue-400 transition-colors"
+                  >
+                    <option value="Flash Flood">🌊 Flash Flood</option>
+                    <option value="Typhoon & Winds">🌀 Typhoon & Winds</option>
+                    <option value="Fire Emergency">🔥 Fire Emergency</option>
+                    <option value="Landslide">⛰️ Landslide</option>
+                    <option value="General Safety">📢 General Safety</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-blue-300 mb-1 block">
+                  Broadcast Message & Safety Instructions *
+                </label>
+                <textarea
+                  rows={5}
+                  required
+                  placeholder="Enter official public disaster safety instructions, evacuation guidance, and emergency hotlines..."
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  className="w-full bg-slate-800/90 text-white placeholder:text-gray-400 text-xs font-medium px-3.5 py-2.5 rounded-xl border border-blue-700/60 outline-none focus:border-blue-400 transition-colors leading-relaxed"
+                />
+              </div>
+
+              {publishSuccess && (
+                <div className="p-3 bg-emerald-950/90 border border-emerald-500/60 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                  <span>{publishSuccess}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-blue-800/60">
+                <span className="text-[11px] font-semibold text-blue-300 flex items-center gap-1.5">
+                  <Share2 size={13} className="text-blue-400" />
+                  Posts directly to Facebook Page & records in Supabase `fb_posts_tracking`
+                </span>
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={publishing}
+                    className="px-5 py-2.5 text-xs font-black text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl shadow-lg border border-blue-500/40 flex items-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+                  >
+                    <Send size={14} className={publishing ? 'animate-spin' : ''} />
+                    {publishing ? 'Publishing & Syncing…' : 'Publish & Sync to Facebook Page 📢'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   )

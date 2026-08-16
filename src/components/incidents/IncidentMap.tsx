@@ -1,6 +1,6 @@
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps'
 import type { Incident } from '@/types/incident'
-import { MapPin } from 'lucide-react'
+import { MapPin, AlertCircle } from 'lucide-react'
 
 const SEVERITY_COLOR: Record<string, string> = {
   low: '#22c55e',
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function IncidentMap({ incidents, onMarkerClick }: Props) {
-  const valid = incidents.filter((i) => i.latitude && i.longitude)
+  const valid = incidents.filter((i) => typeof i.latitude === 'number' && typeof i.longitude === 'number')
 
   return (
     <APIProvider apiKey={API_KEY}>
@@ -31,6 +31,7 @@ export default function IncidentMap({ incidents, onMarkerClick }: Props) {
       >
         {valid.map((incident) => {
           const color = SEVERITY_COLOR[incident.severity] ?? '#6b7280'
+          const isCriticalOrHigh = incident.severity === 'critical' || incident.severity === 'high'
 
           return (
             <AdvancedMarker
@@ -39,11 +40,23 @@ export default function IncidentMap({ incidents, onMarkerClick }: Props) {
               onClick={() => onMarkerClick(incident)}
             >
               <div className="relative group cursor-pointer flex items-center justify-center">
+                {/* Sonar Ping Ring */}
+                {isCriticalOrHigh && (
+                  <span
+                    className="absolute inline-flex size-10 rounded-full animate-ping opacity-75"
+                    style={{ backgroundColor: color }}
+                  />
+                )}
+
                 <div
-                  className="size-8 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white transition-transform group-hover:scale-125"
+                  className="relative size-8 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white transition-transform group-hover:scale-125 z-10"
                   style={{ backgroundColor: color }}
                 >
-                  <MapPin size={16} />
+                  {incident.severity === 'critical' ? (
+                    <AlertCircle size={16} className="animate-pulse" />
+                  ) : (
+                    <MapPin size={16} />
+                  )}
                 </div>
               </div>
             </AdvancedMarker>

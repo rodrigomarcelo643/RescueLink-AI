@@ -62,9 +62,13 @@ function ActionMenu({
     e.stopPropagation()
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const menuHeight = 270
+      const topPos = spaceBelow < menuHeight ? Math.max(10, rect.top - menuHeight) : rect.bottom + 4
+
       setCoords({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
+        top: topPos,
+        right: Math.max(10, window.innerWidth - rect.right),
       })
     }
     setOpen((prev) => !prev)
@@ -122,7 +126,7 @@ function ActionMenu({
               right: coords.right,
               zIndex: 9999,
             }}
-            className="w-52 origin-top-right rounded-xl bg-white p-1.5 shadow-2xl border border-gray-200 text-gray-900"
+            className="w-52 max-h-[75vh] overflow-y-auto rounded-xl bg-white p-1.5 shadow-2xl border border-gray-200 text-gray-900"
           >
             {/* View Full Details Option */}
             <button

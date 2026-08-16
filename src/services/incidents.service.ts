@@ -14,60 +14,52 @@ export const assignAgencyToIncident = async (
   agencyUsername?: string,
   status: Incident['status'] = 'pending'
 ) => {
-  // ── 1. Update rescue_tickets in Supabase DB ──────────────────────────────
-  const fullUpdate = await supabase
+  const validUUID = isUUID(agencyId) ? agencyId : null
+
+  const payload: Record<string, any> = {
+    assigned_agency_name: String(agencyName),
+    status,
+  }
+
+  if (validUUID) {
+    payload.assigned_agency_id = validUUID
+    payload.assigned_responder_id = validUUID
+  }
+
+  const res = await supabase
     .from('rescue_tickets')
-    .update({
-      assigned_agency_id: String(agencyId),
-      assigned_agency_name: String(agencyName),
-      assigned_responder_id: String(agencyId),
-      status,
-    })
+    .update(payload)
     .eq('id', String(id))
 
-  if (fullUpdate.error?.code === '42883') {
-    // UUID column type mismatch — write assigned_agency_name and status
-    console.warn('[assignAgency] assigned_agency_id is UUID type in DB — writing name and status')
-    const nameOnly = await supabase
+  if (res.error) {
+    console.warn('[assignAgency] initial update notice:', res.error.message)
+    const fallback = await supabase
       .from('rescue_tickets')
       .update({
         assigned_agency_name: String(agencyName),
         status,
       })
       .eq('id', String(id))
-    if (nameOnly.error) {
-      console.error('[assignAgency] name-only update failed:', nameOnly.error.code, nameOnly.error.message)
-    } else {
-      console.log('[assignAgency] assigned_agency_name written OK (UUID column fallback)')
+
+    if (fallback.error) {
+      console.error('[assignAgency] fallback update error:', fallback.error.message)
     }
-  } else if (fullUpdate.error) {
-    console.error('[assignAgency] full update failed:', fullUpdate.error.code, fullUpdate.error.message)
-  } else {
-    console.log('[assignAgency] rescue_tickets updated OK — id:', id)
   }
 
-  // ── 2. Update response_agencies.current_assigned_ticket_id ───────────────
-  if (isUUID(agencyId)) {
-    const { error: byIdErr } = await supabase
+  // ── Update response_agencies table if matching ID or username exists ──
+  if (validUUID) {
+    await supabase
       .from('response_agencies')
       .update({ current_assigned_ticket_id: id })
-      .eq('id', agencyId)
-    if (byIdErr) {
-      console.warn('[assignAgency] response_agencies update by id failed:', byIdErr.message)
-    }
+      .eq('id', validUUID)
   }
 
   const username = agencyUsername || agencyId
-  if (username && !isUUID(username)) {
+  if (username && typeof username === 'string') {
     await supabase
       .from('response_agencies')
       .update({ current_assigned_ticket_id: id })
       .eq('username', username)
-  } else if (isUUID(username)) {
-    await supabase
-      .from('response_agencies')
-      .update({ current_assigned_ticket_id: id })
-      .eq('username', agencyUsername!)
   }
 }
 
