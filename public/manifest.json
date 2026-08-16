@@ -45,6 +45,13 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
+      "name": "RescueLink Login 🔑",
+      "short_name": "Login",
+      "description": "Sign in to LGU Command Center or Response Agency Portal",
+      "url": "/login",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
       "name": "Public Dashboard 📊",
       "short_name": "Dashboard",
       "description": "Open RescueLink AI Public Disaster Dashboard",

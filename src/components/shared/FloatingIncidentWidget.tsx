@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Radio, X, Maximize2, Minimize2, MapPin,
+  Radio, X, Maximize2, Minimize2, MapPin, Lock,
   ExternalLink, FileText, ChevronRight, ShieldAlert, Sparkles, Move
 } from 'lucide-react'
 import { getIncidents } from '@/services/incidents.service'
@@ -247,18 +247,27 @@ export default function FloatingIncidentWidget() {
                 </div>
 
                 {/* Footer Quick Action Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200/80">
+                <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-200/80">
                   <Link
                     to="/report"
-                    className="px-3 py-2 text-center text-xs font-black text-white bg-red-700 hover:bg-red-800 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1"
+                    className="px-2 py-2 text-center text-[11px] font-black text-white bg-red-700 hover:bg-red-800 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 shrink-0"
+                    title="Report Emergency Incident"
                   >
-                    <FileText size={12} /> Report SOS 🚨
+                    <FileText size={11} /> Report 🚨
                   </Link>
                   <Link
                     to="/near-incident-live-monitoring"
-                    className="px-3 py-2 text-center text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-xl transition-all flex items-center justify-center gap-1"
+                    className="px-2 py-2 text-center text-[11px] font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-xl transition-all flex items-center justify-center gap-1 shrink-0"
+                    title="Live Incidents Feed"
                   >
-                    <Radio size={12} className="text-purple-700" /> Live Incidents 📡
+                    <Radio size={11} className="text-purple-700" /> Feed 📡
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="px-2 py-2 text-center text-[11px] font-extrabold text-gray-900 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-xl transition-all flex items-center justify-center gap-1 shrink-0"
+                    title="RescueLink Login"
+                  >
+                    <Lock size={11} className="text-red-600" /> Login 🔑
                   </Link>
                 </div>
               </div>
