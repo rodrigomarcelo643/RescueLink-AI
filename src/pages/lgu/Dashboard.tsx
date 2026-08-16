@@ -245,6 +245,11 @@ export default function Dashboard() {
               <Icon size={14} style={{ color }} />
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{value}</p>
+            <p className="text-[11px] text-gray-400">{sub}</p>
+          </div>
+        ))}
+      </div>
+
       {/* ── SLA & Response Time Analytics Card ── */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
         <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5">
