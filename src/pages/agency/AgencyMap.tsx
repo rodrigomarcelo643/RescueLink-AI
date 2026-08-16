@@ -44,7 +44,7 @@ export default function AgencyMap() {
 
   const activeAssignedIncidents = incidents.filter((inc) => {
     if (!agency) return false
-    if (inc.status === 'closed') return false
+    if (inc.status === 'closed' || inc.status === 'rescued') return false
 
     const targetId = inc.assigned_agency_id || inc.assigned_responder_id
     if (targetId) {
