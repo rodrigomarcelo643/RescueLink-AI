@@ -494,22 +494,6 @@ export default function PublicReport() {
               Record a Voice SOS, attach photo or video proof, or describe the situation for instant emergency station dispatch.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setDisasterType('flood')
-              setLocationText('Barangay Labangon, Cebu City (Near SWU Aznar Road)')
-              setPeopleAffected('5')
-              setDescription('Flash flood waters rising up to 1.5 meters along M.H. Aznar Road near SWU campus. 5 residents trapped on upper porch. Power transformer sparking. Medical assistance and rescue boat requested immediately.')
-              setReporterName('Ramon Santos')
-              setReporterContact('09175558912')
-              setAiVoiceExtracted('✨ Real Disaster Scenario Auto-Filled: Flash Flood with 5 Trapped Residents & Transformer Risk!')
-            }}
-            className="px-3.5 py-2 text-xs font-black text-yellow-300 bg-red-800/80 hover:bg-red-700 border border-yellow-400/40 rounded-xl transition-all shadow-xs shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <Sparkles size={14} className="text-yellow-400 animate-pulse" /> Fill Real Scenario Demo ⚡
-          </button>
         </div>
 
         {error && (
