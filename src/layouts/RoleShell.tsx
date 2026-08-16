@@ -1,16 +1,15 @@
 import { useAuth } from '@/context/AuthContext'
 import LGUShell from '@/components/layout/lgu/LGUShell'
 import AgencyShell from '@/components/layout/agency/AgencyShell'
+import VolunteerShell from '@/components/layout/volunteer/VolunteerShell'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 
 // Register new role shells here as the app grows
 const ROLE_SHELLS: Partial<Record<string, React.ComponentType>> = {
   lgu: LGUShell,
   agency: AgencyShell,
-  // ngo: NGOShell,
-  // volunteer: VolunteerShell,
-  // citizen: CitizenShell,
-  // admin: AdminShell,
+  volunteer: VolunteerShell,
+  citizen: VolunteerShell,
 }
 
 export default function RoleShell() {

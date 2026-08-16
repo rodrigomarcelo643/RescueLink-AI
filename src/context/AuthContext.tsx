@@ -45,20 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data) {
         setProfile(data)
       } else {
-        // Default profile fallback for authenticated Supabase LGU officers
+        const metaRole = (user?.user_metadata?.role || 'lgu') as UserRole
         setProfile({
           id: userId,
-          full_name: 'LGU Emergency Officer',
-          role: 'lgu',
-          barangay: null,
+          full_name: user?.user_metadata?.full_name || (metaRole === 'volunteer' ? 'Volunteer Unit' : 'LGU Emergency Officer'),
+          role: metaRole,
+          barangay: user?.user_metadata?.barangay || null,
           municipality: 'Cebu City',
-          phone: null,
+          phone: user?.user_metadata?.phone || null,
         })
       }
     } catch {
       setProfile({
         id: userId,
-        full_name: 'LGU Emergency Officer',
+        full_name: 'Emergency Responder',
         role: 'lgu',
         barangay: null,
         municipality: 'Cebu City',

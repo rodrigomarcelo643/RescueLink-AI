@@ -6,6 +6,11 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import ErrorBoundary from '@/components/shared/ErrorBoundary'
 import Login from '@/pages/auth/Login'
 import Signup from '@/pages/auth/Signup'
+import VolunteerRegister from '@/pages/auth/VolunteerRegister'
+import VolunteerDashboard from '@/pages/volunteer/VolunteerDashboard'
+import VolunteerMap from '@/pages/volunteer/VolunteerMap'
+import VolunteerMatches from '@/pages/volunteer/VolunteerMatches'
+import VolunteerProfile from '@/pages/volunteer/VolunteerProfile'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 
 import Dashboard from '@/pages/lgu/Dashboard'
@@ -39,8 +44,10 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
     const landing: Partial<Record<string, string>> = {
       lgu: '/dashboard',
       agency: '/agency-dashboard',
+      volunteer: '/volunteer-dashboard',
+      citizen: '/volunteer-dashboard',
     }
-    return <Navigate to={landing[role] ?? '/unauthorized'} replace />
+    return <Navigate to={landing[role] ?? '/volunteer-dashboard'} replace />
   }
   if (user && !role) return <LoadingSpinner />
   return <>{children}</>
@@ -53,8 +60,10 @@ function AuthRedirectLanding({ children }: { children: React.ReactNode }) {
     const landing: Partial<Record<string, string>> = {
       lgu: '/dashboard',
       agency: '/agency-dashboard',
+      volunteer: '/volunteer-dashboard',
+      citizen: '/volunteer-dashboard',
     }
-    return <Navigate to={landing[role] ?? '/unauthorized'} replace />
+    return <Navigate to={landing[role] ?? '/volunteer-dashboard'} replace />
   }
   return <>{children}</>
 }
@@ -105,6 +114,16 @@ export default function AppRouter() {
           {/* Auth & Public routes */}
           <Route path="/login" element={<AuthRedirect><Login /></AuthRedirect>} />
           <Route path="/signup" element={<AuthRedirect><Signup /></AuthRedirect>} />
+          <Route path="/register-volunteer" element={<AuthRedirect><VolunteerRegister /></AuthRedirect>} />
+          <Route path="/volunteer-registration" element={<AuthRedirect><VolunteerRegister /></AuthRedirect>} />
+          {/* Volunteer Portal Protected Routes */}
+          <Route element={<ProtectedRoute allowedRoles={['volunteer', 'citizen', 'lgu']} />}>
+            <Route path="/volunteer-dashboard" element={<VolunteerDashboard />} />
+            <Route path="/volunteer/dashboard" element={<VolunteerDashboard />} />
+            <Route path="/volunteer/map" element={<VolunteerMap />} />
+            <Route path="/volunteer/matches" element={<VolunteerMatches />} />
+            <Route path="/volunteer/profile" element={<VolunteerProfile />} />
+          </Route>
           <Route path="/forgot-password" element={<AuthRedirect><ForgotPassword /></AuthRedirect>} />
           <Route path="/public" element={<PublicDashboard />} />
           <Route path="/near-incident-live-monitoring" element={<PublicHappenings />} />

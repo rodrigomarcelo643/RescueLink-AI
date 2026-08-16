@@ -120,7 +120,7 @@ export default function LiveTrackingMap({
   onCalculated,
   onUnitArrived,
 }: LiveTrackingMapProps) {
-  const isResponding = status === 'responding' && !!responder
+  const isResponding = !!responder || status === 'responding'
 
   // Origin coordinates (locked real initial agency start GPS)
   const startPos = useMemo(() => {
@@ -280,15 +280,16 @@ export default function LiveTrackingMap({
                 strokeWidth="5"
                 strokeDasharray="8 6"
               />
-
-              {/* Trailing Active Road Line */}
-              <polyline
-                points={svgPathPoints.slice(0, waypointIndex + 1).map((p) => `${p.x}%,${p.y}%`).join(' ')}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
+              {isResponding && (
+                <polyline
+                  points={svgPathPoints.slice(0, waypointIndex + 1).map((p) => `${p.x}%,${p.y}%`).join(' ')}
+                  fill="none"
+                  stroke={(responder?.unitName || '').toLowerCase().includes('volunteer') ? '#10b981' : '#3b82f6'}
+                  strokeWidth="6"
+                  strokeDasharray={(responder?.unitName || '').toLowerCase().includes('volunteer') ? '6 4' : 'none'}
+                  strokeLinecap="round"
+                />
+              )}
             </svg>
           )}
 
@@ -302,23 +303,41 @@ export default function LiveTrackingMap({
               <span className="absolute inset-0 rounded-full bg-red-600 animate-ping opacity-30" />
             </span>
             <div className="mt-1 whitespace-nowrap rounded bg-black/90 px-2 py-0.5 text-[10px] font-black text-red-200 border border-red-500/40 shadow-xl">
-              📍 DESTINATION: {disasterType}
+              📍 INCIDENT SCENE: {disasterType}
             </div>
           </div>
 
-          {/* Moving Vehicle along Road Route */}
+          {/* Moving Unit along Road Route */}
           {isResponding && (
             <div
               className="absolute z-30 flex flex-col items-center transition-all duration-700 ease-out"
               style={{ left: `${currentSvgPoint.x}%`, top: `${currentSvgPoint.y}%`, transform: 'translate(-50%, -50%)' }}
             >
-              <span className="relative flex size-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl ring-4 ring-blue-400/50">
-                <span className="text-lg animate-bounce">{isArrived ? '🚨' : '🚒'}</span>
-                <span className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-40" />
+              <span className={`relative flex size-10 items-center justify-center rounded-full text-white shadow-2xl ring-4 ${
+                (responder?.unitName || '').toLowerCase().includes('volunteer')
+                  ? 'bg-emerald-600 ring-emerald-400/50'
+                  : 'bg-blue-600 ring-blue-400/50'
+              }`}>
+                <span className="text-lg animate-bounce">
+                  {isArrived ? '📍' : (responder?.unitName || '').toLowerCase().includes('volunteer') ? '🏃‍♂️' : '🚒'}
+                </span>
+                <span className={`absolute inset-0 rounded-full animate-ping opacity-40 ${
+                  (responder?.unitName || '').toLowerCase().includes('volunteer') ? 'bg-emerald-400' : 'bg-blue-400'
+                }`} />
               </span>
-              <div className="mt-1 whitespace-nowrap rounded bg-blue-950/95 px-2 py-0.5 text-[10px] font-black text-blue-200 border border-blue-400/40 shadow-2xl flex items-center gap-1">
-                {isArrived ? <CheckCircle2 size={11} className="text-emerald-400" /> : null}
-                {isArrived ? 'UNIT ARRIVED AT SCENE' : `${responder.unitName || 'Rescue Unit Alpha'} (MOVING ALONG ROAD)`}
+              <div className={`mt-1 whitespace-nowrap rounded px-2.5 py-1 text-[10px] font-black shadow-2xl flex items-center gap-1.5 border ${
+                (responder?.unitName || '').toLowerCase().includes('volunteer')
+                  ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400/40'
+                  : 'bg-blue-950/95 text-blue-200 border-blue-400/40'
+              }`}>
+                {isArrived ? <CheckCircle2 size={12} className="text-emerald-400" /> : null}
+                {isArrived
+                  ? ((responder?.unitName || '').toLowerCase().includes('volunteer')
+                      ? 'VOLUNTEER ASSISTANT ARRIVED AT SCENE ✅'
+                      : 'OFFICIAL AGENCY ARRIVED AT SCENE ✅')
+                  : (responder?.unitName || '').toLowerCase().includes('volunteer')
+                  ? `🏃‍♂️ ${responder?.unitName || 'Volunteer Assistant'} (WALKING ALONG ROUTE)`
+                  : `🚒 ${responder?.unitName || 'Official Agency Unit'} (VEHICLE EN ROUTE)`}
               </div>
             </div>
           )}
@@ -326,11 +345,19 @@ export default function LiveTrackingMap({
           {/* Header Bar */}
           <div className="relative z-30 flex items-center justify-between gap-2 rounded-lg bg-black/85 p-2.5 backdrop-blur-md border border-white/10 text-white text-xs">
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-full bg-blue-600/30 text-blue-400 ring-1 ring-blue-400/30">
+              <div className={`flex size-7 items-center justify-center rounded-full ring-1 ${
+                (responder?.unitName || '').toLowerCase().includes('volunteer')
+                  ? 'bg-emerald-600/30 text-emerald-400 ring-emerald-400/30'
+                  : 'bg-blue-600/30 text-blue-400 ring-blue-400/30'
+              }`}>
                 <Navigation size={14} className="animate-spin" />
               </div>
               <div>
-                <p className="font-extrabold text-blue-300">REAL-TIME GOOGLE ROAD NAVIGATION</p>
+                <p className={`font-extrabold ${
+                  (responder?.unitName || '').toLowerCase().includes('volunteer') ? 'text-emerald-300' : 'text-blue-300'
+                }`}>
+                  {(responder?.unitName || '').toLowerCase().includes('volunteer') ? '🏃‍♂️ VOLUNTEER WALKING TELEMETRY' : '🚒 OFFICIAL VEHICLE ROAD NAVIGATION'}
+                </p>
                 <p className="text-[10px] text-gray-400 font-mono">
                   {currentPos.lat.toFixed(4)}, {currentPos.lng.toFixed(4)}
                 </p>
@@ -341,14 +368,16 @@ export default function LiveTrackingMap({
               <div className="flex items-center gap-3 text-xs border-l border-white/15 pl-3">
                 <div className="flex items-center gap-1 text-emerald-400 font-extrabold">
                   <Gauge size={13} />
-                  {isArrived ? '0 km/h' : '36 km/h'}
+                  {isArrived ? '0 km/h' : (responder?.unitName || '').toLowerCase().includes('volunteer') ? '5 km/h (Walking)' : '45 km/h (Driving)'}
                 </div>
                 <div>
                   <span className="text-[9px] text-gray-400 uppercase font-bold">Remaining</span>
                   <p className="font-extrabold text-blue-300">{remainingDist.toFixed(1)} km</p>
                 </div>
                 <div>
-                  <span className="text-[9px] text-gray-400 uppercase font-bold">ETA</span>
+                  <span className="text-[9px] text-gray-400 uppercase font-bold">
+                    {(responder?.unitName || '').toLowerCase().includes('volunteer') ? 'Walk ETA' : 'Drive ETA'}
+                  </span>
                   <p className="font-extrabold text-emerald-400">{isArrived ? 'ARRIVED' : `~${etaMinutes} min`}</p>
                 </div>
               </div>

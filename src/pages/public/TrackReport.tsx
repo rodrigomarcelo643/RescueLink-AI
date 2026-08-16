@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   MapPin, Users, Clock, AlertTriangle, CheckCircle,
   Loader2, ChevronLeft, Image as ImageIcon, X, Download,
-  Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Play, Building2
+  Phone, Navigation, Sparkles, Zap, CheckCircle2, Play, Building2
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import type { Incident } from '@/types/incident'
@@ -60,6 +60,10 @@ export default function TrackReport() {
   const fetchTicketData = useCallback(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
 
+    const assistanceFlag = JSON.parse(localStorage.getItem(`ticket_assistance_${id}`) || 'null')
+    const localCached: Incident[] = JSON.parse(localStorage.getItem('cached_incidents') || '[]')
+    const foundLocal = localCached.find((item) => item.id === id)
+
     supabase
       .from('rescue_tickets')
       .select('*')
@@ -67,14 +71,39 @@ export default function TrackReport() {
       .single()
       .then(({ data, error }) => {
         if (!error && data) {
-          setIncident(data as Incident)
+          const mergedAgencyName = data.assigned_agency_name || foundLocal?.assigned_agency_name || (assistanceFlag ? `Volunteer Assistance: ${assistanceFlag.volunteerName}` : null)
+          setIncident({
+            ...data,
+            assigned_agency_name: mergedAgencyName,
+            assigned_agency_id: data.assigned_agency_id || foundLocal?.assigned_agency_id || assistanceFlag?.volunteerId || null,
+            assigned_responder_id: data.assigned_responder_id || foundLocal?.assigned_responder_id || assistanceFlag?.volunteerId || null,
+          } as Incident)
           setNotFound(false)
         } else {
-          // Check local cached incidents as fallback for demo/mock IDs
-          const localCached: Incident[] = JSON.parse(localStorage.getItem('cached_incidents') || '[]')
-          const foundLocal = localCached.find((item) => item.id === id)
-          if (foundLocal) {
-            setIncident(foundLocal)
+          if (foundLocal || assistanceFlag) {
+            const mergedAgencyName = foundLocal?.assigned_agency_name || (assistanceFlag ? `Volunteer Assistance: ${assistanceFlag.volunteerName}` : null)
+            setIncident((foundLocal ? { ...foundLocal, assigned_agency_name: mergedAgencyName } : {
+              id,
+              channel: 'web',
+              disaster_type: 'Fire',
+              location_text: 'J. Alcantara Street, Admeral, Cebu City',
+              latitude: 10.2994,
+              longitude: 123.8891,
+              people_affected: 2,
+              severity: 'critical',
+              status: 'pending',
+              priority_score: 90,
+              ai_summary: 'Fire incident reported on J. Alcantara Street, Cebu City.',
+              media_urls: [],
+              raw_message: 'naay sunog pls help and and need namog medics sa nasunogan',
+              fb_sender_id: null,
+              reporter_name: 'test',
+              reporter_contact: null,
+              ip_address: null,
+              assigned_agency_name: mergedAgencyName,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }) as Incident)
             setNotFound(false)
           } else if (id.startsWith('mock-') || id.startsWith('web-') || id.startsWith('demo-')) {
             setIncident((prev) => prev || {
@@ -101,6 +130,7 @@ export default function TrackReport() {
               created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
               updated_at: new Date().toISOString(),
             })
+            setNotFound(false)
           } else {
             setNotFound(true)
           }
@@ -112,7 +142,33 @@ export default function TrackReport() {
   useEffect(() => {
     fetchTicketData()
 
-    // Realtime channel for rescue_tickets table changes
+    // 1. Web BroadcastChannel listener for instant cross-tab updates
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('rescuelink_volunteer_channel')
+      bc.onmessage = (event) => {
+        if (event.data?.ticketId === id) {
+          fetchTicketData()
+        }
+      }
+    } catch (e) {}
+
+    // 2. Supabase Realtime Broadcast listener
+    const bChannel = supabase
+      .channel('public_live_events')
+      .on('broadcast', { event: 'volunteer_assisted' }, (payload) => {
+        if (payload.payload?.ticketId === id) {
+          fetchTicketData()
+        }
+      })
+      .on('broadcast', { event: 'volunteer_cancelled' }, (payload) => {
+        if (payload.payload?.ticketId === id) {
+          fetchTicketData()
+        }
+      })
+      .subscribe()
+
+    // 3. Realtime channel for rescue_tickets table changes
     const channelName = `ticket_track_${id}_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
       .channel(channelName)
@@ -131,6 +187,8 @@ export default function TrackReport() {
       .subscribe()
 
     return () => {
+      bc?.close()
+      supabase.removeChannel(bChannel)
       supabase.removeChannel(channel)
     }
   }, [id, fetchTicketData])
@@ -148,12 +206,56 @@ export default function TrackReport() {
   }, [lightbox, incident])
   // Fetch agency station details for map starting point
   const [assignedAgencyObj, setAssignedAgencyObj] = useState<ResponseAgency | null>(null)
+  const [volunteerCoords, setVolunteerCoords] = useState<{ lat: number; lng: number } | null>(null)
+
+  // Listen to live GPS position of responding volunteer when mission is accepted
+  useEffect(() => {
+    if (!incident) return
+    const volName = (incident.assigned_agency_name || incident.assigned_agency_id || '').toLowerCase()
+    const isVolunteerResponding = volName.includes('volunteer') || incident.status === 'responding' || !!incident.assigned_responder_id
+    if (!isVolunteerResponding) return
+
+    // Set fallback initial position immediately so map displays walking volunteer icon right away
+    setVolunteerCoords((prev) => prev || {
+      lat: (incident.latitude ?? 14.5772) - 0.012,
+      lng: (incident.longitude ?? 123.8854) - 0.012,
+    })
+
+    const channelName = `vol_loc_track_${incident.id}_${Math.random().toString(36).substring(2, 9)}`
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'volunteers' },
+        (payload) => {
+          const rec = payload.new as any
+          if (rec && rec.latitude && rec.longitude) {
+            setVolunteerCoords({ lat: rec.latitude, lng: rec.longitude })
+          }
+        }
+      )
+      .subscribe()
+
+    supabase
+      .from('volunteers')
+      .select('latitude, longitude')
+      .not('latitude', 'is', null)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data[0]?.latitude && data[0]?.longitude) {
+          setVolunteerCoords({ lat: data[0].latitude, lng: data[0].longitude })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [incident?.id, incident?.assigned_agency_name, incident?.assigned_agency_id, incident?.assigned_responder_id, incident?.status])
 
   useEffect(() => {
     if (!incident) return
     const fetchAgencyInfo = async () => {
       const list = await getResponseAgencies()
-      // Only set assigned agency if the ticket has an explicit assigned agency or active responding status
       if (incident.assigned_agency_id || incident.assigned_agency_name) {
         const found = list.find(
           (a) =>
@@ -165,7 +267,6 @@ export default function TrackReport() {
           return
         }
       }
-      // If pending and unassigned, do not force a fallback agency!
       setAssignedAgencyObj(null)
     }
     fetchAgencyInfo()
@@ -233,7 +334,14 @@ export default function TrackReport() {
   // Responder station origin coordinates (derived directly from assigned station GPS)
   const assignedAgency = assignedAgencyObj?.name || inc.assigned_agency_name || null
 
-  const responderInfo = (assignedAgencyObj && assignedAgencyObj.latitude != null && assignedAgencyObj.longitude != null)
+  const responderInfo = volunteerCoords
+    ? {
+        lat: volunteerCoords.lat,
+        lng: volunteerCoords.lng,
+        unitName: inc.assigned_agency_name || inc.assigned_agency_id || 'Volunteer Field Unit 🏃‍♂️',
+        contact: 'RescueLink Live Field Telemetry',
+      }
+    : (assignedAgencyObj && assignedAgencyObj.latitude != null && assignedAgencyObj.longitude != null)
     ? {
         lat: assignedAgencyObj.latitude,
         lng: assignedAgencyObj.longitude,
@@ -286,7 +394,9 @@ export default function TrackReport() {
                   Response Elapsed Telemetry
                 </span>
                 <p className="text-xs font-bold text-white truncate mt-0.5">
-                  {inc.status === 'pending'
+                  {inc.assigned_agency_name || volunteerCoords
+                    ? `🙋‍♂️ Volunteer Assistance Active • Field Telemetry Live (${metrics.formattedLiveTime} active)`
+                    : inc.status === 'pending'
                     ? `⏱️ Awaiting Agency Dispatch (${metrics.formattedLiveTime} elapsed)`
                     : inc.status === 'responding'
                     ? `⚡ Responded in ${metrics.formattedDispatchTime} • Live En Route (${metrics.formattedLiveTime} active)`
@@ -295,13 +405,13 @@ export default function TrackReport() {
               </div>
             </div>
             <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-purple-900 text-amber-300 border border-purple-700 shrink-0 whitespace-nowrap">
-              {metrics.statusLabel}
+              {inc.assigned_agency_name || volunteerCoords ? '🙋‍♂️ VOLUNTEER ASSISTING ONGOING' : metrics.statusLabel}
             </span>
           </div>
 
-          {/* 🚨 LIVE RESCUE INCOMING / ONGOING STATUS BANNER */}
+          {/* 🚨 LIVE VOLUNTEER FIELD ASSISTANCE & RESCUE STATUS BANNER */}
           <AnimatePresence mode="wait">
-            {inc.status === 'responding' && (
+            {(inc.status === 'responding' || (inc.assigned_agency_name || '').toLowerCase().includes('volunteer') || !!volunteerCoords) && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.96, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -309,7 +419,7 @@ export default function TrackReport() {
                 className={`overflow-hidden rounded-xl p-5 text-white shadow-2xl border relative ${
                   unitArrived
                     ? 'bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-950 border-emerald-500/50'
-                    : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-red-950 border-blue-500/40'
+                    : 'bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-950 border-emerald-500/40'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -317,25 +427,25 @@ export default function TrackReport() {
                     <span className={`flex size-10 items-center justify-center rounded-full ring-4 shrink-0 ${
                       unitArrived
                         ? 'bg-emerald-600/40 text-emerald-300 ring-emerald-500/30'
-                        : 'bg-blue-600/40 text-blue-300 ring-blue-500/20 animate-pulse'
+                        : 'bg-emerald-600/40 text-emerald-300 ring-emerald-500/30 animate-pulse'
                     }`}>
-                      {unitArrived ? <CheckCircle2 size={22} /> : <Radio size={20} />}
+                      {unitArrived ? <CheckCircle2 size={22} /> : <span className="text-xl">🏃‍♂️</span>}
                     </span>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded ${
-                          unitArrived ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white animate-pulse'
+                          unitArrived ? 'bg-emerald-600 text-white' : 'bg-emerald-600 text-white animate-pulse'
                         }`}>
-                          {unitArrived ? 'ONGOING RESCUE OPERATION' : 'LIVE ROAD ROUTE TRACKING'}
+                          {unitArrived ? 'VOLUNTEER ARRIVED AT SCENE ✅' : '🙋‍♂️ VOLUNTEER FIELD ASSISTANCE ONGOING'}
                         </span>
-                        <span className="text-[11px] font-mono text-blue-200 font-bold">
+                        <span className="text-[11px] font-mono text-emerald-200 font-bold">
                           {responderInfo.unitName}
                         </span>
                       </div>
                       <h2 className="mt-1 text-lg font-black text-white tracking-tight">
                         {unitArrived
-                          ? '🚨 RESCUE UNIT ARRIVED AT SCENE — OPERATION ONGOING!'
-                          : '🚨 RESCUE INCOMING TO YOUR LOCATION!'}
+                          ? '🚨 VOLUNTEER RESPONDER HAS ARRIVED AT SCENE — ASSISTANCE ONGOING!'
+                          : '🏃‍♂️ VOLUNTEER RESPONDER WALKING ALONG ROUTE TO YOUR LOCATION!'}
                       </h2>
                     </div>
                   </div>
@@ -373,7 +483,32 @@ export default function TrackReport() {
               </motion.div>
             )}
 
-            {inc.status === 'pending' && (
+            {/* 🙋‍♂️ VOLUNTEER FIELD ASSISTANCE ONGOING CARD */}
+            {(inc.assigned_agency_name || volunteerCoords) && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-xl bg-emerald-50 p-4 border border-emerald-300 text-emerald-950 flex items-center gap-3 shadow-xs"
+              >
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg shrink-0">
+                  <span className="text-xl">🙋‍♂️</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-emerald-950 flex items-center gap-2 flex-wrap">
+                    <span>🙋‍♂️ Volunteer Field Assistance Active ({inc.assigned_agency_name || 'Volunteer Responder'})</span>
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-emerald-200 text-emerald-900 rounded">
+                      Assistance Ongoing 🟢
+                    </span>
+                  </h3>
+                  <p className="text-xs text-emerald-800 mt-0.5 font-medium">
+                    A verified volunteer responder accepted field assistance for this incident and is walking live toward the location. Official LGU & agency dispatch monitoring remains active.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {inc.status === 'pending' && !(inc.assigned_agency_name || volunteerCoords) && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -440,9 +575,9 @@ export default function TrackReport() {
                 <Navigation size={13} className="text-blue-600" />
                 Real-Time Road Route Navigation Map
               </span>
-              {inc.status === 'responding' && (
+              {(inc.status === 'responding' || !!inc.assigned_agency_name || !!volunteerCoords) && (
                 <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Road Tracking Active
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Volunteer Road Tracking Active 🏃‍♂️
                 </span>
               )}
             </div>
@@ -455,7 +590,7 @@ export default function TrackReport() {
               locationText={inc.location_text}
               severity={inc.severity}
               status={inc.status}
-              responder={inc.status === 'responding' ? responderInfo : null}
+              responder={(inc.status === 'responding' || !!inc.assigned_agency_name || !!volunteerCoords) ? responderInfo : null}
               onCalculated={(d, e) => {
                 setCalcDistance(d)
                 setCalcEta(e)

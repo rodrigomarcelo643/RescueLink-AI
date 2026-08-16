@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '@/services/supabase'
 import { signIn, signInWithGoogle } from '@/services/auth.service'
 import { signInAgency } from '@/services/agencyAuth.service'
 import { useAuth } from '@/context/AuthContext'
@@ -116,12 +117,31 @@ export default function Login() {
       return
     }
 
-    // 2) Standard Supabase Auth Check (LGU, Citizen, Admin)
+    // 2) Standard Supabase Auth Check (LGU, Volunteer, Citizen, Admin)
     const { error: authErr } = await signIn(emailOrUsername, password)
     if (authErr) {
       setError(authErr.message)
+      setLoading(false)
+      return
+    }
+
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    let detectedRole = currentUser?.user_metadata?.role || 'lgu'
+
+    if (currentUser?.id) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .maybeSingle()
+      if (prof?.role) detectedRole = prof.role
+    }
+
+    await refreshProfile()
+
+    if (detectedRole === 'volunteer') {
+      navigate('/volunteer-dashboard', { replace: true })
     } else {
-      await refreshProfile()
       navigate('/dashboard', { replace: true })
     }
     setLoading(false)
@@ -284,13 +304,27 @@ export default function Login() {
                 </button>
               </FadeUp>
 
-              <FadeUp delay={0.42} className="text-center">
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-semibold text-gray-400 underline underline-offset-4 transition-colors hover:text-red-700"
-                >
-                  Forgot password?
-                </Link>
+              <FadeUp delay={0.42} className="flex flex-col items-center gap-3 pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-center w-full text-xs font-semibold text-gray-500">
+                  <Link
+                    to="/forgot-password"
+                    className="text-gray-400 underline underline-offset-4 transition-colors hover:text-red-700"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <div className="w-full pt-2">
+                  <Link
+                    to="/register-volunteer"
+                    className="flex w-full items-center justify-center gap-2 py-2.5 px-4 text-xs font-black text-red-950 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-all shadow-2xs group"
+                  >
+                    <span>Want to join emergency response?</span>
+                    <span className="text-red-700 underline group-hover:text-red-800 font-black">
+                      Register as Volunteer 🤝
+                    </span>
+                  </Link>
+                </div>
               </FadeUp>
 
             </form>
