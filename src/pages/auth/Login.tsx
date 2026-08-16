@@ -142,16 +142,6 @@ export default function Login() {
         <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
 
         <div className="relative z-10 flex w-full flex-col items-center gap-6 text-center my-auto">
-          <motion.img
-            src={mainLogo}
-            alt="RescueLink AI"
-            className="w-36 object-contain shadow-2xl border border-white/20"
-            style={{ borderRadius: 14 }}
-            initial={{ opacity: 0, scale: 0.88 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.15, ease }}
-          />
-
           <FadeUp delay={0.25} className="text-center max-w-sm">
             <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-md">RescueLink AI</h1>
             <p className="mt-1.5 text-xs font-black uppercase tracking-wider text-red-400 drop-shadow">
