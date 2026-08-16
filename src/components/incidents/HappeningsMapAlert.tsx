@@ -17,11 +17,45 @@ interface Props {
   incidents: Incident[]
   prediction: AIPredictionResult | null
   selectedLocation: { lat: number; lng: number }
+  typhoonSimulated?: boolean
   onSelectCoordinates?: (lat: number, lng: number) => void
   onSelectIncident?: (incident: Incident) => void
 }
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string
+
+/**
+ * Renders live typhoon trajectory route line on the map towards the user GPS position
+ */
+function TyphoonTrajectoryOverlay({
+  origin,
+  destination,
+}: {
+  origin: { lat: number; lng: number }
+  destination: { lat: number; lng: number }
+}) {
+  const map = useMap()
+  const mapsLib = useMapsLibrary('maps')
+
+  useEffect(() => {
+    if (!map || !mapsLib) return
+
+    const polyline = new mapsLib.Polyline({
+      path: [origin, destination],
+      geodesic: true,
+      strokeColor: '#9333ea',
+      strokeOpacity: 0.95,
+      strokeWeight: 6,
+      map,
+    })
+
+    return () => {
+      polyline.setMap(null)
+    }
+  }, [map, mapsLib, origin.lat, origin.lng, destination.lat, destination.lng])
+
+  return null
+}
 
 /**
  * Renders real-world driving road routes from fixed user GPS location to nearest incidents
@@ -34,56 +68,24 @@ function NearestIncidentRouteOverlay({
   incidentLoc: { lat: number; lng: number }
 }) {
   const map = useMap()
-  const routesLib = useMapsLibrary('routes')
   const mapsLib = useMapsLibrary('maps')
 
   useEffect(() => {
-    if (!map) return
+    if (!map || !mapsLib) return
 
-    if (routesLib && typeof google !== 'undefined' && google.maps && google.maps.DirectionsService) {
-      const directionsService = new routesLib.DirectionsService()
-      const directionsRenderer = new routesLib.DirectionsRenderer({
-        map,
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: '#ef4444',
-          strokeOpacity: 0.85,
-          strokeWeight: 4,
-        },
-      })
+    const polyline = new mapsLib.Polyline({
+      path: [userLoc, incidentLoc],
+      geodesic: true,
+      strokeColor: '#ef4444',
+      strokeOpacity: 0.85,
+      strokeWeight: 4,
+      map,
+    })
 
-      directionsService.route(
-        {
-          origin: userLoc,
-          destination: incidentLoc,
-          travelMode: google.maps.TravelMode.DRIVING,
-        },
-        (result: any, status: any) => {
-          if (status === google.maps.DirectionsStatus.OK && result) {
-            directionsRenderer.setDirections(result)
-          }
-        }
-      )
-
-      return () => {
-        directionsRenderer.setMap(null)
-      }
-    } else if (mapsLib) {
-      // Fallback geodesic line
-      const polyline = new mapsLib.Polyline({
-        path: [userLoc, incidentLoc],
-        geodesic: true,
-        strokeColor: '#ef4444',
-        strokeOpacity: 0.8,
-        strokeWeight: 3,
-        map,
-      })
-
-      return () => {
-        polyline.setMap(null)
-      }
+    return () => {
+      polyline.setMap(null)
     }
-  }, [map, routesLib, mapsLib, userLoc.lat, userLoc.lng, incidentLoc.lat, incidentLoc.lng])
+  }, [map, mapsLib, userLoc.lat, userLoc.lng, incidentLoc.lat, incidentLoc.lng])
 
   return null
 }
@@ -102,9 +104,9 @@ export default function HappeningsMapAlert({
   incidents,
   prediction,
   selectedLocation,
+  typhoonSimulated,
   onSelectIncident,
 }: Props) {
-  // Filter active, unresolved incidents
   const validIncidents = incidents.filter(
     (i) =>
       typeof i.latitude === 'number' &&
@@ -115,10 +117,39 @@ export default function HappeningsMapAlert({
 
   const mapAlert = prediction?.mapAlert
 
+  // Simulated Typhoon Eye Coordinates
+  const typhoonEye = {
+    lat: selectedLocation.lat + 0.035,
+    lng: selectedLocation.lng - 0.038,
+  }
+
   return (
     <div className="relative w-full rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-900 touch-auto" style={{ height: 500 }}>
+
+      {/* Typhoon Active Live Simulation Telemetry Header */}
+      {typhoonSimulated && (
+        <div className="absolute top-3 left-3 right-3 z-20 bg-gradient-to-r from-purple-950 via-red-950 to-slate-950 text-white p-3 rounded-xl border border-purple-500 backdrop-blur-md shadow-xl flex items-center justify-between flex-wrap gap-2 animate-in fade-in duration-300">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-purple-700 text-amber-300 font-extrabold text-sm shadow-md">
+              🌀
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase text-purple-200 tracking-wider flex items-center gap-1.5">
+                Category 4 Super Typhoon Radar Satellite Track
+              </p>
+              <p className="text-[11px] font-bold text-amber-300 font-mono">
+                Distance: 4.8 km away | Landfall ETA: ~24 min | Speed: 185 km/h
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black text-white bg-red-600 px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse">
+            Immediate Evacuation Urged
+          </span>
+        </div>
+      )}
+
       {/* Top Floating Map Alert Banner */}
-      {mapAlert && mapAlert.active && (
+      {!typhoonSimulated && mapAlert && mapAlert.active && (
         <div className="absolute top-3 left-3 right-3 z-10 bg-red-900/90 text-white p-3 rounded-xl border border-red-500 backdrop-blur-md shadow-md flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-start sm:items-center gap-2.5">
             <span className="relative flex size-3 shrink-0 mt-0.5 sm:mt-0">
@@ -150,7 +181,7 @@ export default function HappeningsMapAlert({
       <APIProvider apiKey={API_KEY}>
         <Map
           defaultCenter={selectedLocation}
-          defaultZoom={13}
+          defaultZoom={12}
           mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'rescuelink-map'}
           style={{ width: '100%', height: '100%' }}
           gestureHandling="greedy"
@@ -161,7 +192,37 @@ export default function HappeningsMapAlert({
         >
           <MapPanController selectedLocation={selectedLocation} />
 
-          {/* User Fixed Live GPS Location Pin (Non-Adjustable) */}
+          {/* Realistic Satellite Typhoon Radar Spiral & Eyewall Overlay */}
+          {typhoonSimulated && (
+            <>
+              <TyphoonTrajectoryOverlay origin={typhoonEye} destination={selectedLocation} />
+
+              {/* Multi-Layer Radar Rainband & Satellite Wind Overlay */}
+              <AdvancedMarker position={typhoonEye}>
+                <div className="relative flex flex-col items-center justify-center">
+                  {/* Outer Satellite Rainband Radar Ring 1 */}
+                  <div className="absolute size-44 rounded-full border-2 border-purple-500/40 bg-purple-600/10 animate-ping opacity-60 pointer-events-none" />
+
+                  {/* Gale-Force Wind Contour Ring 2 */}
+                  <div className="absolute size-32 rounded-full border-2 border-red-500/60 bg-red-600/20 animate-pulse pointer-events-none" />
+
+                  {/* Eyewall High-Turbulence Ring 3 */}
+                  <div className="absolute size-20 rounded-full border-4 border-amber-400 bg-purple-950/80 shadow-2xl pointer-events-none" />
+
+                  {/* Calm Eye Center Pin */}
+                  <div className="relative size-12 rounded-full bg-slate-950 border-2 border-white flex items-center justify-center shadow-2xl text-amber-300 text-lg font-black z-10">
+                    🌀
+                  </div>
+
+                  <span className="mt-2 px-2.5 py-0.5 text-[9px] font-black text-amber-300 bg-purple-950/95 rounded border border-purple-500 shadow-xl whitespace-nowrap uppercase tracking-wider z-20">
+                    🌀 SUPER TYPHOON EYEWALL (185 KM/H)
+                  </span>
+                </div>
+              </AdvancedMarker>
+            </>
+          )}
+
+          {/* User Fixed Live GPS Location Pin */}
           <AdvancedMarker position={selectedLocation}>
             <div className="relative flex flex-col items-center">
               <div className="absolute size-10 rounded-full bg-blue-500/30 animate-ping" />

@@ -7,44 +7,78 @@ import {
   type PublicHappening,
   type AIPredictionResult
 } from '@/services/aiPredictionService'
+import { getEvacuationCenters } from '@/services/evacuationCenters.service'
+import type { EvacuationCenter } from '@/types/evacuationCenter'
 import type { Incident } from '@/types/incident'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import HappeningsMapAlert from '@/components/incidents/HappeningsMapAlert'
 import AIPredictionInspector from '@/components/incidents/AIPredictionInspector'
 import HappeningDetailModal from '@/components/incidents/HappeningDetailModal'
+import EvacuationCenterDetailsModal, { type EvacuationCenterInfo } from '@/components/evacuation/EvacuationCenterDetailsModal'
+import EvacuationSelectionModal from '@/components/evacuation/EvacuationSelectionModal'
 import PWAInstallWidgetModal from '@/components/shared/PWAInstallWidgetModal'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 import {
   requestDeviceNotificationPermission,
-  sendSampleDeviceNotification,
   saveUserGPSCoordinates,
   initLiveProximityPushListener,
 } from '@/services/deviceNotificationService'
 import {
   AlertTriangle, Radio, MapPin, ArrowLeft, FileText,
-  Filter, Navigation, Activity, Search, ChevronRight,
-  ShieldCheck, ShieldAlert, Bell, Lock
+  Filter, Activity, Search, ChevronRight,
+  ShieldCheck, ShieldAlert, CloudLightning, Building2, Layers
 } from 'lucide-react'
+
+function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Math.round(R * c * 10) / 10
+}
 
 export default function PublicHappenings() {
   const navigate = useNavigate()
   const isWidgetMode = new URLSearchParams(window.location.search).get('mode') === 'widget'
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [happenings, setHappenings] = useState<PublicHappening[]>([])
+  const [evacList, setEvacList] = useState<EvacuationCenter[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Selected location coordinates (Default: User's Current Location)
-  const [selectedCoords, setSelectedCoords] = useState({ lat: 14.5995, lng: 120.9842 })
+  // Typhoon Simulation State
+  const [typhoonSimulated, setTyphoonSimulated] = useState(false)
+
+  // Selected Location Coordinates (Default: Fixed User Location)
+  const [selectedCoords, setSelectedCoords] = useState({ lat: 10.3157, lng: 123.8854 })
   const [locationName, setLocationName] = useState('Your Current Proximity')
   const [prediction, setPrediction] = useState<AIPredictionResult | null>(null)
   const [locating, setLocating] = useState(false)
   const [disasterFilter, setDisasterFilter] = useState<string>('all')
   const [activeTab, setActiveTab] = useState<'all' | 'map_alert' | 'ai_forecast' | 'incident' | 'advisory'>('all')
 
+  // Selected Evacuation Center ID
+  const [selectedEvacId, setSelectedEvacId] = useState<string | null>(null)
+
   // Full Details Modal state
   const [selectedDetailItem, setSelectedDetailItem] = useState<Incident | PublicHappening | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+
+  // Evacuation Center Selection & Details Modals state
+  const [evacSelectionModalOpen, setEvacSelectionModalOpen] = useState(false)
+  const [evacModalOpen, setEvacModalOpen] = useState(false)
+  const [selectedEvacCenterModal, setSelectedEvacCenterModal] = useState<EvacuationCenterInfo | null>(null)
 
   const handleOpenDetail = (item: Incident | PublicHappening) => {
     setSelectedDetailItem(item)
@@ -73,16 +107,57 @@ export default function PublicHappenings() {
       // Fetch public happenings stream
       const hList = await getPublicHappenings(coords)
       setHappenings(hList)
+
+      // Fetch evacuation centers list
+      const centers = await getEvacuationCenters()
+      setEvacList(centers)
+      if (centers.length > 0 && !selectedEvacId) {
+        setSelectedEvacId(centers[0].id)
+      }
     } catch (e) {
       console.error('Error fetching public happenings:', e)
     } finally {
       setLoading(false)
     }
-  }, [selectedCoords, locationName, disasterFilter])
+  }, [selectedCoords, locationName, disasterFilter, selectedEvacId])
 
   const handleSimulateDisaster = (type: string) => {
     setDisasterFilter(type)
     fetchAllData(selectedCoords, type === 'all' ? undefined : type)
+  }
+
+  // Toggle Typhoon Category 4 Simulation
+  const handleToggleTyphoonSimulation = () => {
+    setTyphoonSimulated((prev) => !prev)
+  }
+
+  // Open Evacuation Center Details Modal
+  const handleOpenEvacuationModal = (center?: EvacuationCenter) => {
+    const target = center || sortedEvacuationCenters[0]
+    if (!target) return
+
+    const dist = calculateHaversineDistance(
+      selectedCoords.lat,
+      selectedCoords.lng,
+      target.latitude || 10.3157,
+      target.longitude || 123.8854
+    )
+
+    const centerInfo: EvacuationCenterInfo = {
+      name: target.name,
+      address: `${target.barangay || 'Barangay'}, ${target.municipality || 'Cebu City'}`,
+      distanceKm: dist,
+      capacity: target.capacity || 500,
+      occupied: target.current_occupancy || 0,
+      status: 'open',
+      contact: '(032) 261-2222',
+      facilities: ['Backup Power Generators', 'Potable Water Station', 'Red Cross Medical Clinic', 'DSWD Relief Packs'],
+      lat: target.latitude || selectedCoords.lat + 0.008,
+      lng: target.longitude || selectedCoords.lng - 0.008,
+    }
+
+    setSelectedEvacCenterModal(centerInfo)
+    setEvacModalOpen(true)
   }
 
   // Auto-detect user's current location on mount & auto-request push notifications
@@ -112,7 +187,6 @@ export default function PublicHappenings() {
       fetchAllData()
     }
 
-    // Realtime postgres channel for incoming emergency reports
     const channelName = `happenings_channel_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
       .channel(channelName)
@@ -146,22 +220,20 @@ export default function PublicHappenings() {
     )
   }
 
-  const handleSelectCoordinates = (lat: number, lng: number) => {
-    const coords = { lat, lng }
-    saveUserGPSCoordinates(lat, lng)
-    setSelectedCoords(coords)
-    setLocationName(`Selected Spot (${lat.toFixed(3)}, ${lng.toFixed(3)})`)
-    const pred = calculateAIPrediction(lat, lng, incidents, `Selected Spot (${lat.toFixed(3)}, ${lng.toFixed(3)})`)
-    setPrediction(pred)
-  }
+  // Sort evacuation centers by distance to user GPS location
+  const sortedEvacuationCenters = evacList
+    .map((center) => ({
+      ...center,
+      distKm: calculateHaversineDistance(
+        selectedCoords.lat,
+        selectedCoords.lng,
+        center.latitude || 10.3157,
+        center.longitude || 123.8854
+      ),
+    }))
+    .sort((a, b) => a.distKm - b.distKm)
 
-  const handleSelectPreset = (lat: number, lng: number, name: string) => {
-    const coords = { lat, lng }
-    setSelectedCoords(coords)
-    setLocationName(name)
-    const pred = calculateAIPrediction(lat, lng, incidents, name)
-    setPrediction(pred)
-  }
+  const activeEvacCenter = sortedEvacuationCenters.find((c) => c.id === selectedEvacId) || sortedEvacuationCenters[0]
 
   const filteredHappenings = activeTab === 'all'
     ? happenings
@@ -177,37 +249,22 @@ export default function PublicHappenings() {
           <div className="flex items-center gap-2 min-w-0">
             <img src={mainLogo} alt="RescueLink AI" className="h-6 w-6 sm:h-7 sm:w-7 rounded-md object-cover shrink-0" />
             <span className="text-xs font-black tracking-tight text-white truncate">
-              RescueLink AI <span className="hidden sm:inline">— Live Incident Widget</span>
+              RescueLink AI <span className="hidden sm:inline">— Live Incident Feed</span>
             </span>
           </div>
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <Link
               to="/report"
               className="px-1.5 sm:px-2 py-1 text-[10px] font-black bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center gap-1 shadow-xs whitespace-nowrap"
-              title="Report Emergency Incident"
             >
               <FileText size={11} /> Report 🚨
             </Link>
             <Link
               to="/public"
               className="px-1.5 sm:px-2 py-1 text-[10px] font-black bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-1 shadow-xs whitespace-nowrap"
-              title="Public Dashboard"
             >
               <Activity size={11} /> Dashboard 📊
             </Link>
-            <Link
-              to="/login"
-              className="px-1.5 sm:px-2 py-1 text-[10px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-md transition-colors flex items-center gap-1 whitespace-nowrap"
-              title="RescueLink Login"
-            >
-              <Lock size={11} /> Login 🔑
-            </Link>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-1.5 sm:px-2 py-1 text-[10px] font-extrabold bg-purple-800 hover:bg-purple-700 text-amber-300 rounded-md transition-colors cursor-pointer whitespace-nowrap"
-            >
-              Refresh 🔄
-            </button>
           </div>
         </div>
       ) : (
@@ -249,121 +306,103 @@ export default function PublicHappenings() {
       {/* Main Container */}
       <div className="mx-auto max-w-7xl px-2.5 sm:px-6 pt-3 sm:pt-6 flex flex-col gap-4 sm:gap-6">
 
-        {/* Header Hero Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-950 via-purple-950 to-slate-900 p-4 sm:p-6 text-white shadow-xl border border-purple-900/50">
+        {/* Header Hero Banner with Typhoon Simulator */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-red-950 via-purple-950 to-slate-900 p-5 sm:p-6 text-white shadow-2xl border border-purple-900/50">
           <div className="absolute -right-10 -bottom-10 opacity-10 text-white pointer-events-none">
             <Radio size={160} />
           </div>
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                <span className="px-2 sm:px-2.5 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-red-600/90 text-white rounded-full flex items-center gap-1">
-                  <Activity size={12} /> Live Telemetry
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-red-600 text-white rounded-full flex items-center gap-1">
+                  <Activity size={12} /> Live Telemetry Feed
                 </span>
-                <span className="text-[11px] sm:text-xs text-red-200 font-semibold">Updated Seconds Ago</span>
+                {typhoonSimulated && (
+                  <span className="px-2 py-0.5 text-[10px] font-black uppercase bg-purple-700 text-white rounded-full animate-pulse border border-purple-400">
+                    🌀 Category 4 Typhoon Track Active
+                  </span>
+                )}
               </div>
               <h2 className="text-lg sm:text-2xl font-black tracking-tight text-white leading-tight">
-                Live Incident Feed & Community Risk Hub
+                Live Incident Feed & Typhoon Warning Simulator
               </h2>
               <p className="mt-1 text-xs text-gray-200 max-w-2xl font-medium leading-relaxed">
-                Real-time neighborhood event telemetry, community risk assessments, and nearest accident tracking to keep residents safe and informed.
+                Real-time neighborhood incident tracking, typhoon distance route telemetry, and mandatory evacuation center directives.
               </p>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {/* Expand Evacuation Options Button */}
               <button
-                onClick={async () => {
-                  const ok = await sendSampleDeviceNotification()
-                  if (ok) {
-                    alert('🔔 Emergency Push Alerts Enabled! You will receive background device notifications when accidents occur near your GPS location.')
-                  } else {
-                    alert('Please allow Notifications in your browser/device settings to receive background emergency proximity alerts.')
-                  }
-                }}
-                className="w-full sm:w-auto px-3.5 py-2 text-xs font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                type="button"
+                onClick={() => setEvacSelectionModalOpen(true)}
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-black bg-purple-700 hover:bg-purple-800 text-white rounded-xl shadow-lg border border-purple-400/60 transition-all cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
               >
-                <Bell size={14} className="text-slate-950 animate-bounce" /> Enable Phone Push Alerts 🔔
+                <Building2 size={15} /> Expand Evacuation Options 🏫
               </button>
+
+              {/* Simulate Typhoon Warning Button */}
               <button
-                onClick={handleLocateUser}
-                disabled={locating}
-                className="w-full sm:w-auto px-4 py-2 text-xs font-extrabold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                onClick={handleToggleTyphoonSimulation}
+                className={`w-full sm:w-auto px-4 py-2.5 text-xs font-black rounded-xl shadow-lg border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  typhoonSimulated
+                    ? 'bg-purple-700 hover:bg-purple-800 text-white border-purple-400 animate-pulse'
+                    : 'bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 text-white border-purple-400/50'
+                }`}
               >
-                <Navigation size={14} className={locating ? 'animate-spin' : ''} />
-                {locating ? 'Locating Spot…' : 'Inspect My Location Risk'}
+                <CloudLightning size={16} className="text-amber-300 animate-spin" />
+                {typhoonSimulated ? 'Reset Typhoon Simulation 🔄' : 'Simulate Typhoon Warning 🌀'}
               </button>
             </div>
           </div>
         </div>
 
-        {/* AI Disaster & Evacuation Recommendation Banner */}
-        {prediction && (
-          prediction.riskScore === 0 || prediction.calamityReadiness.evacuationStatus === 'normal' ? (
-            <div className="bg-gradient-to-r from-emerald-950 via-green-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-emerald-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-start gap-3">
-                <div className="size-10 sm:size-11 rounded-xl bg-emerald-800/80 border border-emerald-600 flex items-center justify-center text-emerald-300 font-black shrink-0 mt-0.5">
-                  <ShieldCheck size={22} className="animate-pulse text-emerald-300" />
-                </div>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white rounded">
-                      🟢 SECTOR ALL CLEAR — NO ACTIVE RISK
-                    </span>
-                    <span className="text-xs font-bold text-emerald-300 font-mono">
-                      Live Risk Score: 0%
-                    </span>
-                  </div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-white">
-                    All Emergency Reports Resolved & Closed 🟢
-                  </h3>
-                  <p className="text-xs text-emerald-200 font-medium max-w-2xl">
-                    📍 All emergency tickets in {prediction.locationName} have been completed by response units. No active disaster risk detected.
-                  </p>
-                </div>
+        {/* Typhoon Warning & Mandatory Evacuation Recommendation Banner */}
+        {typhoonSimulated && activeEvacCenter && (
+          <div className="bg-gradient-to-r from-red-950 via-purple-950 to-slate-900 text-white p-5 rounded-3xl border-2 border-red-500 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
+            <div className="flex items-start gap-3.5">
+              <div className="size-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black shrink-0 mt-0.5 shadow-lg border border-red-400">
+                <CloudLightning size={26} className="animate-spin text-amber-300" />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Link
-                  to="/report"
-                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-600 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
-                >
-                  <FileText size={14} /> Report New Incident 🚨
-                </Link>
+
+              <div className="flex flex-col gap-1.5 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-red-600 text-white rounded">
+                    🚨 MANDATORY EVACUATION DIRECTIVE (SUPER TYPHOON)
+                  </span>
+                  <span className="text-xs font-bold text-amber-300 font-mono bg-purple-900/80 px-2 py-0.5 rounded border border-purple-700">
+                    Track Distance: 4.8 km | Impact Time: ~24 min
+                  </span>
+                </div>
+
+                <h3 className="text-base sm:text-lg font-black text-white leading-snug">
+                  AI Directive: All Residents in Low-Lying Sectors Must Migrate to {activeEvacCenter.name} Immediately!
+                </h3>
+
+                <p className="text-xs text-purple-200 font-medium">
+                  📍 Target Shelter: <button onClick={() => handleOpenEvacuationModal(activeEvacCenter)} className="font-extrabold text-amber-300 underline hover:text-white cursor-pointer">{activeEvacCenter.name}</button> ({activeEvacCenter.distKm} km from your GPS location).
+                </p>
               </div>
             </div>
-          ) : (
-            <div className="bg-gradient-to-r from-purple-950 via-purple-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-purple-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-start gap-3">
-                <div className="size-10 sm:size-11 rounded-xl bg-purple-800/80 border border-purple-600 flex items-center justify-center text-purple-300 font-black shrink-0 mt-0.5">
-                  <ShieldAlert size={22} className="animate-pulse text-amber-400" />
-                </div>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-red-600 text-white rounded">
-                      {prediction.riskLevel.toUpperCase()} RISK ({(prediction.dominantHazard || 'DISASTER').toUpperCase()})
-                    </span>
-                    <span className="text-xs font-bold text-amber-300 font-mono">
-                      Live Risk Score: {prediction.riskScore}%
-                    </span>
-                  </div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-white">
-                    AI Recommends Preemptive Evacuation to: {prediction.calamityReadiness.nearestOpenShelterName || 'Nearest Evacuation Center'}
-                  </h3>
-                  <p className="text-xs text-purple-200 font-medium max-w-2xl">
-                    📍 Located {prediction.calamityReadiness.shelterDistanceKm} km from your GPS position ({prediction.calamityReadiness.availableCapacity} spots available).
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Link
-                  to="/report"
-                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
-                >
-                  <FileText size={14} /> Send SOS 🚨
-                </Link>
-              </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEvacSelectionModalOpen(true)}
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-black text-white bg-purple-800 hover:bg-purple-700 rounded-xl border border-purple-400 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Layers size={14} /> Expand Options 🏫
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenEvacuationModal(activeEvacCenter)}
+                className="w-full sm:w-auto px-5 py-2.5 text-xs font-black text-white bg-gradient-to-r from-purple-700 to-purple-800 hover:from-purple-600 hover:to-purple-700 rounded-xl shadow-lg border border-purple-400 flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+              >
+                <Building2 size={16} /> View Details ↗
+              </button>
             </div>
-          )
+          </div>
         )}
 
         {/* AI Forecast Inspector & Happenings Map Alert */}
@@ -375,7 +414,7 @@ export default function PublicHappenings() {
               loading={loading}
               onLocateUser={handleLocateUser}
               locating={locating}
-              onSelectBarangay={handleSelectPreset}
+              onSelectBarangay={() => {}}
               onSelectIncident={handleOpenDetail}
               onSimulateDisaster={handleSimulateDisaster}
               activeDisasterFilter={disasterFilter}
@@ -392,22 +431,16 @@ export default function PublicHappenings() {
                     Public Map Alert & Incident Heatmap
                   </h3>
                   <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium">
-                    Click any location on the map to evaluate risk or click incident markers to view full details.
+                    Map is locked to your fixed live GPS position. Driving route lines show distance to nearest incidents.
                   </p>
                 </div>
-
-                {prediction?.mapAlert && (
-                  <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-red-100 text-red-700 rounded-full animate-pulse shrink-0">
-                    Active Map Alert
-                  </span>
-                )}
               </div>
 
               <HappeningsMapAlert
                 incidents={incidents}
                 prediction={prediction}
                 selectedLocation={selectedCoords}
-                onSelectCoordinates={handleSelectCoordinates}
+                typhoonSimulated={typhoonSimulated}
                 onSelectIncident={handleOpenDetail}
               />
             </div>
@@ -427,7 +460,7 @@ export default function PublicHappenings() {
               </p>
             </div>
 
-            {/* Filter Pills — Smooth Horizontal Scroll on Mobile */}
+            {/* Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
               <span className="text-[11px] text-gray-400 font-extrabold flex items-center gap-1 mr-1 shrink-0">
                 <Filter size={12} /> Filter:
@@ -514,11 +547,32 @@ export default function PublicHappenings() {
           )}
         </div>
 
-        {/* Full Detail Modal */}
+        {/* Incident / Happening Detail Modal */}
         <HappeningDetailModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           item={selectedDetailItem}
+          userCoords={selectedCoords}
+        />
+
+        {/* Evacuation Centers Selection Modal */}
+        <EvacuationSelectionModal
+          open={evacSelectionModalOpen}
+          onClose={() => setEvacSelectionModalOpen(false)}
+          centers={sortedEvacuationCenters}
+          selectedId={selectedEvacId}
+          onSelectCenter={(id) => {
+            setSelectedEvacId(id)
+          }}
+          onOpenDetails={(center) => handleOpenEvacuationModal(center)}
+          userCoords={selectedCoords}
+        />
+
+        {/* Evacuation Center Details Modal */}
+        <EvacuationCenterDetailsModal
+          open={evacModalOpen}
+          onClose={() => setEvacModalOpen(false)}
+          center={selectedEvacCenterModal}
           userCoords={selectedCoords}
         />
 

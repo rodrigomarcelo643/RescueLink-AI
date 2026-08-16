@@ -17,7 +17,7 @@ export const getEvacuationCenters = async (): Promise<EvacuationCenter[]> => {
   // Fallback evacuation centers seed data
   return [
     {
-      id: 'center-cebu-01',
+      id: 'a1b2c3d4-0001-4000-8000-000000000001',
       name: 'Labangon Evacuation Center (Municipal Gymnasium)',
       barangay: 'Labangon',
       municipality: 'Cebu City',
@@ -30,7 +30,7 @@ export const getEvacuationCenters = async (): Promise<EvacuationCenter[]> => {
       created_at: new Date().toISOString(),
     },
     {
-      id: 'center-cebu-02',
+      id: 'a1b2c3d4-0002-4000-8000-000000000002',
       name: 'Banawa Elementary Sports Complex',
       barangay: 'Guadalupe',
       municipality: 'Cebu City',
@@ -43,7 +43,7 @@ export const getEvacuationCenters = async (): Promise<EvacuationCenter[]> => {
       created_at: new Date().toISOString(),
     },
     {
-      id: 'center-cebu-03',
+      id: 'a1b2c3d4-0003-4000-8000-000000000003',
       name: 'Southwestern Aznar Memorial Gymnasium',
       barangay: 'Sambag II',
       municipality: 'Cebu City',

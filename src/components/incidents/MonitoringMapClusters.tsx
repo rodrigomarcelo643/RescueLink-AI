@@ -25,55 +25,24 @@ function RespondingLineOverlay({
   destination: { lat: number; lng: number }
 }) {
   const map = useMap()
-  const routesLib = useMapsLibrary('routes')
   const mapsLib = useMapsLibrary('maps')
 
   useEffect(() => {
-    if (!map) return
+    if (!map || !mapsLib) return
 
-    if (routesLib && typeof google !== 'undefined' && google.maps && google.maps.DirectionsService) {
-      const directionsService = new routesLib.DirectionsService()
-      const directionsRenderer = new routesLib.DirectionsRenderer({
-        map,
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: '#2563eb',
-          strokeOpacity: 0.9,
-          strokeWeight: 5,
-        },
-      })
+    const polyline = new mapsLib.Polyline({
+      path: [origin, destination],
+      geodesic: true,
+      strokeColor: '#2563eb',
+      strokeOpacity: 0.9,
+      strokeWeight: 5,
+      map,
+    })
 
-      directionsService.route(
-        {
-          origin,
-          destination,
-          travelMode: google.maps.TravelMode.DRIVING,
-        },
-        (result: any, status: any) => {
-          if (status === google.maps.DirectionsStatus.OK && result) {
-            directionsRenderer.setDirections(result)
-          }
-        }
-      )
-
-      return () => {
-        directionsRenderer.setMap(null)
-      }
-    } else if (mapsLib) {
-      const polyline = new mapsLib.Polyline({
-        path: [origin, destination],
-        geodesic: true,
-        strokeColor: '#2563eb',
-        strokeOpacity: 0.85,
-        strokeWeight: 4,
-        map,
-      })
-
-      return () => {
-        polyline.setMap(null)
-      }
+    return () => {
+      polyline.setMap(null)
     }
-  }, [map, routesLib, mapsLib, origin.lat, origin.lng, destination.lat, destination.lng])
+  }, [map, mapsLib, origin.lat, origin.lng, destination.lat, destination.lng])
 
   return null
 }
