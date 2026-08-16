@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   MapPin, Users, Clock, AlertTriangle, CheckCircle,
-  Loader2, ChevronLeft, Image as ImageIcon, X,
+  Loader2, ChevronLeft, Image as ImageIcon, X, Download,
   Radio, Phone, Navigation, Sparkles, Zap, CheckCircle2, Play, Building2
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
@@ -195,6 +195,37 @@ export default function TrackReport() {
   const inc = incident!
   const metrics = calculateTicketResponseMetrics(inc)
   const photos = inc.media_urls ?? []
+
+  const handleDownloadQRCode = () => {
+    const svgElement = document.getElementById('incident-qr-code-svg') as SVGElement | null
+    if (!svgElement) return
+
+    const svgData = new XMLSerializer().serializeToString(svgElement)
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+    const URL = window.URL || window.webkitURL || window
+    const blobURL = URL.createObjectURL(svgBlob)
+
+    const image = new Image()
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 350
+      canvas.height = 350
+      const context = canvas.getContext('2d')
+      if (context) {
+        context.fillStyle = '#ffffff'
+        context.fillRect(0, 0, canvas.width, canvas.height)
+        context.drawImage(image, 0, 0, 350, 350)
+        const png = canvas.toDataURL('image/png')
+        const downloadLink = document.createElement('a')
+        downloadLink.href = png
+        downloadLink.download = `RescueLink-Report-QR-${inc.id.slice(0, 8)}.png`
+        document.body.appendChild(downloadLink)
+        downloadLink.click()
+        document.body.removeChild(downloadLink)
+      }
+    }
+    image.src = blobURL
+  }
 
   const incLat = inc.latitude ?? 14.5772
   const incLng = inc.longitude ?? 123.8854
@@ -578,8 +609,15 @@ export default function TrackReport() {
           >
             <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Share / Track This Report</p>
             <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff' }}>
-              <QRCodeSVG value={trackUrl} size={140} fgColor="#111827" bgColor="#ffffff" level="M" />
+              <QRCodeSVG id="incident-qr-code-svg" value={trackUrl} size={140} fgColor="#111827" bgColor="#ffffff" level="M" />
             </div>
+            <button
+              type="button"
+              onClick={handleDownloadQRCode}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg transition-colors cursor-pointer"
+            >
+              <Download size={13} className="text-purple-700" /> Download QR Code PNG 📥
+            </button>
             <p className="max-w-xs break-all text-center text-[11px] text-gray-400">{trackUrl}</p>
           </div>
 
