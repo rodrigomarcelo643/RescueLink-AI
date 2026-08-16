@@ -6,15 +6,16 @@ import { signInAgency } from '@/services/agencyAuth.service'
 import { useAuth } from '@/context/AuthContext'
 import { AlertTriangle, Lock, Eye, EyeOff, User } from 'lucide-react'
 import mainLogo from '@/assets/logo/main_logo.jpg'
+import loginBg from '@/assets/images/login_bg.jpg'
 import { Button } from '@/components/ui/button'
 import { FadeUp, FadeIn } from '@/components/shared/MotionWrappers'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
 const STATS = [
-  { n: '24/7', d: 'Monitoring' },
-  { n: '3+',   d: 'Channels'  },
-  { n: 'AI',   d: 'Powered'   },
+  { n: 'AI',   d: 'Predictive' },
+  { n: '100%', d: 'Unified'    },
+  { n: '24/7', d: 'Response'   },
 ]
 
 function FloatingBottomBorderInput({
@@ -129,50 +130,60 @@ export default function Login() {
   return (
     <div className="flex min-h-screen bg-white font-sans text-gray-900">
 
-      {/* ── Left panel ── */}
+      {/* ── Left panel with login_bg.jpg ── */}
       <motion.div
-        className="relative hidden w-[48%] flex-col items-center justify-center gap-8 bg-white p-12 lg:flex"
-        style={{ borderRight: '1px solid #f0f0f0' }}
+        className="relative hidden w-[48%] flex-col items-center justify-between bg-cover bg-center bg-no-repeat p-12 lg:flex overflow-hidden"
+        style={{ backgroundImage: `url(${loginBg})` }}
         initial={{ opacity: 0, x: -30 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, ease }}
       >
-        <motion.img
-          src={mainLogo}
-          alt="RescueLink AI"
-          className="w-60 object-contain"
-          style={{ borderRadius: 12 }}
-          initial={{ opacity: 0, scale: 0.88 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.15, ease }}
-        />
+        {/* Dark overlay for text legibility */}
+        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" />
 
-        <FadeUp delay={0.25} className="text-center">
-          <h1 className="text-xl font-extrabold tracking-tight text-gray-900">RescueLink AI</h1>
-          <p className="mt-1 text-sm font-medium text-gray-400">Rescue & Relief Coordination Platform</p>
-        </FadeUp>
+        <div className="relative z-10 flex w-full flex-col items-center gap-6 text-center my-auto">
+          <motion.img
+            src={mainLogo}
+            alt="RescueLink AI"
+            className="w-36 object-contain shadow-2xl border border-white/20"
+            style={{ borderRadius: 14 }}
+            initial={{ opacity: 0, scale: 0.88 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.15, ease }}
+          />
 
-        <FadeUp
-          delay={0.35}
-          className="flex w-full max-w-xs divide-x divide-gray-100 overflow-hidden"
-          style={{ border: '1px solid #f0f0f0', borderRadius: 5 }}
-        >
-          {STATS.map(({ n, d }, i) => (
-            <motion.div
-              key={d}
-              className="flex flex-1 flex-col items-center py-3"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 + i * 0.08, ease: 'easeOut' }}
-            >
-              <span className="text-base font-extrabold text-gray-900">{n}</span>
-              <span className="text-[11px] font-medium text-gray-400">{d}</span>
-            </motion.div>
-          ))}
-        </FadeUp>
+          <FadeUp delay={0.25} className="text-center max-w-sm">
+            <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-md">RescueLink AI</h1>
+            <p className="mt-1.5 text-xs font-black uppercase tracking-wider text-red-400 drop-shadow">
+              AI-Powered Disaster Intelligence & Response System
+            </p>
+            <p className="mt-2 text-xs font-medium text-slate-200 leading-relaxed drop-shadow bg-black/40 p-3 rounded-xl border border-white/10">
+              Predicting impact, prioritizing response, and coordinating emergency action before lives are at risk.
+            </p>
+          </FadeUp>
 
-        <FadeIn delay={0.6} className="absolute bottom-8">
-          <p className="text-[11px] text-gray-300">
+          <FadeUp
+            delay={0.35}
+            className="flex w-full max-w-xs divide-x divide-white/10 overflow-hidden bg-black/40 backdrop-blur-md"
+            style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10 }}
+          >
+            {STATS.map(({ n, d }, i) => (
+              <motion.div
+                key={d}
+                className="flex flex-1 flex-col items-center py-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 + i * 0.08, ease: 'easeOut' }}
+              >
+                <span className="text-base font-extrabold text-white">{n}</span>
+                <span className="text-[11px] font-medium text-slate-300">{d}</span>
+              </motion.div>
+            ))}
+          </FadeUp>
+        </div>
+
+        <FadeIn delay={0.6} className="relative z-10">
+          <p className="text-[11px] text-slate-300 font-medium drop-shadow-sm">
             © {new Date().getFullYear()} RescueLink AI · Philippines
           </p>
         </FadeIn>
@@ -182,30 +193,27 @@ export default function Login() {
       <div className="flex flex-1 items-center justify-center bg-white px-4 sm:px-8 py-8 sm:py-16">
         <div className="w-full max-w-[560px]">
 
-          {/* Mobile logo */}
-          <motion.div
-            className="mb-6 flex flex-col items-center gap-3 lg:hidden"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease }}
-          >
-            <img src={mainLogo} alt="RescueLink AI" className="w-24 object-contain" style={{ borderRadius: 8 }} />
-          </motion.div>
-
-          {/* Heading */}
-          <FadeUp delay={0.1} className="mb-6 text-center lg:text-left">
-            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">Welcome back</h2>
-            <p className="mt-1 text-sm text-gray-400">Sign in to your account to continue</p>
-          </FadeUp>
-
           {/* Form card */}
           <motion.div
-            className="bg-white p-7 sm:p-8 shadow-xs"
+            className="bg-white p-7 sm:p-9 shadow-xs"
             style={{ border: '1px solid #e5e7eb', borderRadius: 5 }}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.18, ease }}
           >
+            {/* Header inspired by user screenshot: Title on left, Logo badge on right */}
+            <div className="flex items-start justify-between gap-4 mb-7 pb-2 border-b border-gray-100">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">Sign in</h2>
+                <p className="mt-1 text-sm font-semibold text-gray-500">to continue to RescueLink AI</p>
+              </div>
+              <img
+                src={mainLogo}
+                alt="RescueLink AI"
+                className="h-10 sm:h-12 w-auto object-contain rounded-lg border border-gray-200 shadow-2xs shrink-0"
+              />
+            </div>
+
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
               <FadeUp delay={0.26}>
