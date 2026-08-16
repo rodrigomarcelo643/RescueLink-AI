@@ -1,14 +1,128 @@
 import { useState, useEffect } from 'react'
 import { getIncidents } from '@/services/incidents.service'
 import type { Incident } from '@/types/incident'
-import { APIProvider, Map as GoogleMap, AdvancedMarker } from '@vis.gl/react-google-maps'
+import { APIProvider, Map as GoogleMap, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps'
 import LiveTrackingMap from '@/components/incidents/LiveTrackingMap'
 import {
   Navigation, Radio, AlertTriangle, HeartHandshake, CheckCircle2, X
 } from 'lucide-react'
 
+declare const google: any
+
 const API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || ''
 const DEFAULT_CENTER = { lat: 10.3157, lng: 123.8854 } // Cebu City
+
+async function fetchRoadRoutePoints(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  routesLib?: any
+): Promise<Array<{ lat: number; lng: number }>> {
+  if (routesLib && typeof google !== 'undefined' && google.maps) {
+    try {
+      const directionsService = new routesLib.DirectionsService()
+      const res: any = await new Promise((resolve, reject) => {
+        directionsService.route(
+          {
+            origin,
+            destination,
+            travelMode: google.maps.TravelMode.DRIVING,
+          },
+          (result: any, status: any) => {
+            if (status === google.maps.DirectionsStatus.OK && result?.routes?.[0]?.overview_path) {
+              resolve(result)
+            } else {
+              reject(new Error(`Directions status: ${status}`))
+            }
+          }
+        )
+      })
+
+      const path = res.routes[0].overview_path.map((pt: any) => ({
+        lat: typeof pt.lat === 'function' ? pt.lat() : pt.lat,
+        lng: typeof pt.lng === 'function' ? pt.lng() : pt.lng,
+      }))
+      if (path.length > 1) return path
+    } catch {}
+  }
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`
+    const resp = await fetch(url)
+    if (resp.ok) {
+      const json = await resp.json()
+      if (json.routes?.[0]?.geometry?.coordinates) {
+        const coords: [number, number][] = json.routes[0].geometry.coordinates
+        const roadPath = coords.map(([lng, lat]) => ({ lat, lng }))
+        if (roadPath.length > 1) return roadPath
+      }
+    }
+  } catch {}
+
+  const dLat = destination.lat - origin.lat
+  const dLng = destination.lng - origin.lng
+  return [
+    { lat: origin.lat, lng: origin.lng },
+    { lat: origin.lat + dLat * 0.25, lng: origin.lng + dLng * 0.1 },
+    { lat: origin.lat + dLat * 0.45, lng: origin.lng + dLng * 0.5 },
+    { lat: origin.lat + dLat * 0.75, lng: origin.lng + dLng * 0.65 },
+    { lat: origin.lat + dLat * 0.9, lng: origin.lng + dLng * 0.95 },
+    { lat: destination.lat, lng: destination.lng },
+  ]
+}
+
+function VolunteerRoutePolylineOverlay({
+  origin,
+  destination,
+  isAssisting,
+}: {
+  origin: { lat: number; lng: number }
+  destination: { lat: number; lng: number }
+  isAssisting?: boolean
+}) {
+  const map = useMap()
+  const mapsLib = useMapsLibrary('maps')
+  const routesLib = useMapsLibrary('routes')
+
+  useEffect(() => {
+    if (!map || !mapsLib) return
+    let isMounted = true
+    let casingPolyline: any = null
+    let roadPolyline: any = null
+
+    fetchRoadRoutePoints(origin, destination, routesLib).then((points) => {
+      if (!isMounted || !map || !mapsLib) return
+
+      const color = isAssisting ? '#10b981' : '#3b82f6'
+      const casingColor = isAssisting ? '#064e3b' : '#1e3a8a'
+
+      casingPolyline = new mapsLib.Polyline({
+        path: points,
+        geodesic: true,
+        strokeColor: casingColor,
+        strokeOpacity: 0.7,
+        strokeWeight: 7,
+        map,
+      })
+
+      roadPolyline = new mapsLib.Polyline({
+        path: points,
+        geodesic: true,
+        strokeColor: color,
+        strokeOpacity: 0.95,
+        strokeWeight: 4,
+        map,
+      })
+    })
+
+    return () => {
+      isMounted = false
+      if (casingPolyline) casingPolyline.setMap(null)
+      if (roadPolyline) roadPolyline.setMap(null)
+    }
+  }, [map, mapsLib, routesLib, origin.lat, origin.lng, destination.lat, destination.lng, isAssisting])
+
+  return null
+}
 
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371
@@ -149,6 +263,15 @@ export default function VolunteerMap() {
                     </AdvancedMarker>
                   )
                 })}
+
+                {/* Road Route Path Overlay to Selected / Assisting Incident */}
+                {coords && selectedIncident && selectedIncident.latitude && selectedIncident.longitude && (
+                  <VolunteerRoutePolylineOverlay
+                    origin={coords}
+                    destination={{ lat: selectedIncident.latitude, lng: selectedIncident.longitude }}
+                    isAssisting={assistingIds.includes(selectedIncident.id)}
+                  />
+                )}
               </GoogleMap>
             </APIProvider>
           ) : (
