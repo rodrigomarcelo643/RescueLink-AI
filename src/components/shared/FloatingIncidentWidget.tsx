@@ -9,6 +9,8 @@ import { getIncidents } from '@/services/incidents.service'
 import type { Incident } from '@/types/incident'
 import mainLogo from '/main_logo.jpg'
 
+import { supabase } from '@/services/supabase'
+
 export default function FloatingIncidentWidget() {
   const location = useLocation()
   
@@ -48,10 +50,25 @@ export default function FloatingIncidentWidget() {
     }
 
     loadTelemetry()
-    const interval = setInterval(loadTelemetry, 8000)
+
+    // Realtime Supabase listener instead of aggressive 8-second polling
+    const channelName = `widget_realtime_${Math.random().toString(36).substring(2, 9)}`
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rescue_tickets' },
+        () => {
+          if (active) loadTelemetry()
+        }
+      )
+      .subscribe()
+
     return () => {
       active = false
-      clearInterval(interval)
+      setTimeout(() => {
+        supabase.removeChannel(channel)
+      }, 100)
     }
   }, [])
 
