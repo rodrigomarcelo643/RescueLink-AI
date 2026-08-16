@@ -252,12 +252,19 @@ export const generateAIPatternSuggestions = (incidents: Incident[]): AIPatternSu
       ? 'high'
       : 'medium'
 
+    const catLower = typeKey.toLowerCase()
+    let category = typeKey
+    if (catLower.includes('fire')) category = 'Fire Emergency'
+    else if (catLower.includes('flood') || catLower.includes('water')) category = 'Flash Flood'
+    else if (catLower.includes('typhoon') || catLower.includes('wind') || catLower.includes('storm')) category = 'Typhoon & Winds'
+    else if (catLower.includes('landslide') || catLower.includes('soil')) category = 'Landslide'
+
     const upperType = typeKey.toUpperCase()
 
     return {
       id: `pat_${idx}_${Date.now()}`,
       title: `PUBLIC DISASTER ADVISORY: ${upperType} EMERGENCY WARNING IN ${topLoc.toUpperCase()}`,
-      category: typeKey,
+      category,
       severity,
       body: `AI Incident Telemetry Alert: Detected a repeat pattern of ${count} report(s) for ${typeKey} centered around ${topLoc}. LGU Command Center urges all residents in low-lying and affected areas to stay vigilant and execute preemptive evacuation protocols. Contact LGU Hotline 911 for immediate emergency response.`,
       confidenceScore: Math.min(99, 82 + count * 5),

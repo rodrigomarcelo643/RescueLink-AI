@@ -586,6 +586,9 @@ export default function FbMonitorPanel() {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full bg-slate-800/90 text-white text-xs font-bold px-3 py-2.5 rounded-xl border border-blue-700/60 outline-none focus:border-blue-400 transition-colors"
                   >
+                    {category && !['Flash Flood', 'Typhoon & Winds', 'Fire Emergency', 'Landslide', 'General Safety'].includes(category) && (
+                      <option value={category}>🚨 {category} (AI Selected)</option>
+                    )}
                     <option value="Flash Flood">🌊 Flash Flood</option>
                     <option value="Typhoon & Winds">🌀 Typhoon & Winds</option>
                     <option value="Fire Emergency">🔥 Fire Emergency</option>
