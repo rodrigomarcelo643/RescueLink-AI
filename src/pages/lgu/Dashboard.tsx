@@ -18,6 +18,8 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 
+import { calculateOverallResponseStats } from '@/utils/responseTime'
+
 const SEVERITY_COLOR: Record<string, string> = {
   low: '#22c55e', medium: '#f59e0b', high: '#f97316', critical: '#ef4444',
 }
@@ -70,6 +72,8 @@ export default function Dashboard() {
     if (period === 'year')  cutoff.setFullYear(now.getFullYear() - 1)
     return incidents.filter((i) => new Date(i.created_at) >= cutoff)
   }, [incidents, period])
+
+  const responseStats = useMemo(() => calculateOverallResponseStats(filtered), [filtered])
 
   // ── KPI calculations ──────────────────────────────────────────────────
   const pending    = filtered.filter((i) => i.status === 'pending').length
@@ -241,9 +245,54 @@ export default function Dashboard() {
               <Icon size={14} style={{ color }} />
             </div>
             <p className="text-2xl font-extrabold text-gray-900">{value}</p>
-            <p className="text-[11px] text-gray-400">{sub}</p>
+      {/* ── SLA & Response Time Analytics Card ── */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+        <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-purple-100 rounded-lg text-purple-700">
+              <Clock size={16} />
+            </div>
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">
+                Agency Response Time & SLA Performance Telemetry
+              </h3>
+              <p className="text-[11px] font-semibold text-gray-500">
+                Live dispatch duration, rescue completion metrics & SLA fulfillment tracking
+              </p>
+            </div>
           </div>
-        ))}
+          <span className="text-xs font-extrabold text-purple-900 bg-purple-100 px-2.5 py-1 rounded-full border border-purple-200">
+            SLA Target: &lt;10 mins
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-100">
+            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">Avg Time to Dispatch</span>
+            <p className="text-xl font-extrabold text-purple-950 mt-1">{responseStats.avgDispatchFormatted}</p>
+            <span className="text-[10px] font-medium text-purple-600">Report to Agency Acceptance</span>
+          </div>
+
+          <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Avg Rescue Duration</span>
+            <p className="text-xl font-extrabold text-emerald-950 mt-1">{responseStats.avgResolutionFormatted}</p>
+            <span className="text-[10px] font-medium text-emerald-600">Report to Rescue Completion</span>
+          </div>
+
+          <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-100">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-700">SLA Fulfillment (&lt;10m)</span>
+            <p className="text-xl font-extrabold text-amber-950 mt-1">{responseStats.slaPerformancePercentage}%</p>
+            <span className="text-[10px] font-medium text-amber-700">{responseStats.totalRespondedTickets} Tickets Dispatched</span>
+          </div>
+
+          <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">Fastest Response</span>
+            <p className="text-xl font-extrabold text-blue-950 mt-1">
+              {responseStats.fastestDispatchMinutes > 0 ? `${responseStats.fastestDispatchMinutes}m` : 'N/A'}
+            </p>
+            <span className="text-[10px] font-medium text-blue-600">Best Agency Acceptance Record</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Row 3: Map + Breakdowns ── */}

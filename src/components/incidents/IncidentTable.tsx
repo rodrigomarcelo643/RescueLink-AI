@@ -8,6 +8,7 @@ import IncidentDetailsModal from '@/components/incidents/IncidentDetailsModal'
 import AgencyAssignModal from '@/components/incidents/AgencyAssignModal'
 import { SEVERITY_COLOR } from '@/constants/incidentStatus'
 import { assignAgencyToIncident } from '@/services/incidents.service'
+import { calculateTicketResponseMetrics } from '@/utils/responseTime'
 import { updateIncident } from '@/redux/slices/incidentSlice'
 import { useDispatch } from 'react-redux'
 import { useModal } from '@/context/ModalContext'
@@ -258,6 +259,7 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Channel</th>
               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">People & Reporter</th>
               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Proof Media</th>
+              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-purple-900 bg-purple-50/80">Response SLA</th>
               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500">Date</th>
               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wider text-gray-500 text-right">Actions</th>
             </tr>
@@ -266,6 +268,7 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
             {incidents.map((incident) => {
               // Show assigned unit when name OR id is set (id may be UUID type in DB)
               const assignedName = (incident.assigned_agency_name || null)
+              const metrics = calculateTicketResponseMetrics(incident)
 
               return (
                 <tr key={incident.id} className="hover:bg-gray-50/60 transition-colors">
@@ -372,6 +375,28 @@ export default function IncidentTable({ incidents, onStatusChange, onAssignAgenc
                   {/* Proof Photos */}
                   <td className="px-4 py-3.5 align-top">
                     <ProofCarousel urls={incident.media_urls ?? []} compact />
+                  </td>
+
+                  {/* Response SLA */}
+                  <td className="px-4 py-3.5 align-top whitespace-nowrap text-[11px] font-extrabold">
+                    {incident.status === 'pending' ? (
+                      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        <Clock size={10} className="animate-pulse text-amber-600" /> {metrics.formattedLiveTime} pending
+                      </span>
+                    ) : incident.status === 'responding' ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center gap-1 text-purple-900 bg-purple-100 px-2 py-0.5 rounded border border-purple-200">
+                          ⚡ Responded in {metrics.formattedDispatchTime}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-semibold">
+                          ⏱️ {metrics.formattedLiveTime} active
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        ✅ Rescued in {metrics.formattedResolutionTime}
+                      </span>
+                    )}
                   </td>
 
                   {/* Date */}

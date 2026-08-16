@@ -112,11 +112,30 @@ export const getIncidents = async (): Promise<Incident[]> => {
 // ── Status Update ─────────────────────────────────────────────────────────────
 
 export const updateIncidentStatus = async (id: string, status: Incident['status']) => {
+  const now = new Date().toISOString()
+  const payload: Record<string, any> = { status, updated_at: now }
+
+  if (status === 'responding') {
+    payload.accepted_at = now
+  } else if (status === 'rescued') {
+    payload.rescued_at = now
+  } else if (status === 'closed') {
+    payload.closed_at = now
+  }
+
   const { error } = await supabase
     .from('rescue_tickets')
-    .update({ status })
+    .update(payload)
     .eq('id', id)
-  if (error) throw error
+
+  if (error) {
+    // Fallback if specific milestone timestamp columns don't exist in DB
+    const fallback = await supabase
+      .from('rescue_tickets')
+      .update({ status, updated_at: now })
+      .eq('id', id)
+    if (fallback.error) throw fallback.error
+  }
 }
 
 // ── Delete Incident ───────────────────────────────────────────────────────────

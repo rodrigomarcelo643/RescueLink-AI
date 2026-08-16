@@ -19,6 +19,9 @@ export interface Incident {
   assigned_agency_id?: string | null
   assigned_agency_name?: string | null
   assigned_responder_id?: string | null
+  accepted_at?: string | null
+  rescued_at?: string | null
+  closed_at?: string | null
   created_at: string
   updated_at: string
 }

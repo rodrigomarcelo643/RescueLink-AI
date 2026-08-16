@@ -13,6 +13,7 @@ import LiveTrackingMap from '@/components/incidents/LiveTrackingMap'
 import { isVideoUrl } from '@/components/incidents/ProofCarousel'
 import { getResponseAgencies } from '@/services/responseAgencies.service'
 import type { ResponseAgency } from '@/types/responseAgency'
+import { calculateTicketResponseMetrics } from '@/utils/responseTime'
 import mainLogo from '@/assets/logo/main_logo.jpg'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -192,6 +193,7 @@ export default function TrackReport() {
   }
 
   const inc = incident!
+  const metrics = calculateTicketResponseMetrics(inc)
   const photos = inc.media_urls ?? []
 
   const incLat = inc.latitude ?? 14.5772
@@ -241,6 +243,30 @@ export default function TrackReport() {
           transition={{ duration: 0.45, ease }}
           className="flex flex-col gap-5"
         >
+
+          {/* ⏱️ Live Response Duration & Telemetry Clock */}
+          <div className="p-3.5 rounded-xl bg-purple-950 text-white border border-purple-800 shadow-md flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-lg bg-purple-900/90 text-amber-400 shrink-0">
+                <Clock size={18} className="animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 block">
+                  Response Elapsed Telemetry
+                </span>
+                <p className="text-xs font-bold text-white truncate mt-0.5">
+                  {inc.status === 'pending'
+                    ? `⏱️ Awaiting Agency Dispatch (${metrics.formattedLiveTime} elapsed)`
+                    : inc.status === 'responding'
+                    ? `⚡ Responded in ${metrics.formattedDispatchTime} • Live En Route (${metrics.formattedLiveTime} active)`
+                    : `✅ Rescue Completed in ${metrics.formattedResolutionTime}`}
+                </p>
+              </div>
+            </div>
+            <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-purple-900 text-amber-300 border border-purple-700 shrink-0 whitespace-nowrap">
+              {metrics.statusLabel}
+            </span>
+          </div>
 
           {/* 🚨 LIVE RESCUE INCOMING / ONGOING STATUS BANNER */}
           <AnimatePresence mode="wait">
