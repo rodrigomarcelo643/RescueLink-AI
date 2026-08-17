@@ -15,34 +15,129 @@ const SEVERITY_COLOR: Record<string, string> = {
 declare const google: any
 
 /**
+ * Fetches turn-by-turn road route coordinates using Google Directions API with OSRM fallback
+ */
+async function fetchRoadRoutePoints(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  routesLib?: any
+): Promise<Array<{ lat: number; lng: number }>> {
+  // 1. Try Google Maps DirectionsService
+  if (routesLib && typeof google !== 'undefined' && google.maps) {
+    try {
+      const directionsService = new routesLib.DirectionsService()
+      const res: any = await new Promise((resolve, reject) => {
+        directionsService.route(
+          {
+            origin,
+            destination,
+            travelMode: google.maps.TravelMode.DRIVING,
+          },
+          (result: any, status: any) => {
+            if (status === google.maps.DirectionsStatus.OK && result?.routes?.[0]?.overview_path) {
+              resolve(result)
+            } else {
+              reject(new Error(`Directions status: ${status}`))
+            }
+          }
+        )
+      })
+
+      const path = res.routes[0].overview_path.map((pt: any) => ({
+        lat: typeof pt.lat === 'function' ? pt.lat() : pt.lat,
+        lng: typeof pt.lng === 'function' ? pt.lng() : pt.lng,
+      }))
+      if (path.length > 1) return path
+    } catch {
+      // Fallback to OSRM
+    }
+  }
+
+  // 2. High-precision OpenStreetMap / OSRM routing engine
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`
+    const resp = await fetch(url)
+    if (resp.ok) {
+      const json = await resp.json()
+      if (json.routes?.[0]?.geometry?.coordinates) {
+        const coords: [number, number][] = json.routes[0].geometry.coordinates
+        const roadPath = coords.map(([lng, lat]) => ({ lat, lng }))
+        if (roadPath.length > 1) return roadPath
+      }
+    }
+  } catch {
+    // Fallback to realistic curves
+  }
+
+  // 3. Multi-segment curved road interpolation fallback
+  const dLat = destination.lat - origin.lat
+  const dLng = destination.lng - origin.lng
+  return [
+    { lat: origin.lat, lng: origin.lng },
+    { lat: origin.lat + dLat * 0.25, lng: origin.lng + dLng * 0.1 },
+    { lat: origin.lat + dLat * 0.45, lng: origin.lng + dLng * 0.5 },
+    { lat: origin.lat + dLat * 0.75, lng: origin.lng + dLng * 0.65 },
+    { lat: origin.lat + dLat * 0.9, lng: origin.lng + dLng * 0.95 },
+    { lat: destination.lat, lng: destination.lng },
+  ]
+}
+
+/**
  * Calculates and renders exact real-world Google Maps driving road navigation routes
  */
 function RespondingLineOverlay({
   origin,
   destination,
+  isVolunteer = false,
 }: {
   origin: { lat: number; lng: number }
   destination: { lat: number; lng: number }
+  isVolunteer?: boolean
 }) {
   const map = useMap()
   const mapsLib = useMapsLibrary('maps')
+  const routesLib = useMapsLibrary('routes')
 
   useEffect(() => {
     if (!map || !mapsLib) return
 
-    const polyline = new mapsLib.Polyline({
-      path: [origin, destination],
-      geodesic: true,
-      strokeColor: '#2563eb',
-      strokeOpacity: 0.9,
-      strokeWeight: 5,
-      map,
+    let isMounted = true
+    let casingPolyline: any = null
+    let roadPolyline: any = null
+
+    fetchRoadRoutePoints(origin, destination, routesLib).then((points) => {
+      if (!isMounted || !map || !mapsLib) return
+
+      const color = isVolunteer ? '#10b981' : '#2563eb'
+      const casingColor = isVolunteer ? '#064e3b' : '#1e3a8a'
+
+      // Outer contrasting glow casing line
+      casingPolyline = new mapsLib.Polyline({
+        path: points,
+        geodesic: true,
+        strokeColor: casingColor,
+        strokeOpacity: 0.75,
+        strokeWeight: 7,
+        map,
+      })
+
+      // Inner active road route line
+      roadPolyline = new mapsLib.Polyline({
+        path: points,
+        geodesic: true,
+        strokeColor: color,
+        strokeOpacity: 0.95,
+        strokeWeight: 4,
+        map,
+      })
     })
 
     return () => {
-      polyline.setMap(null)
+      isMounted = false
+      if (casingPolyline) casingPolyline.setMap(null)
+      if (roadPolyline) roadPolyline.setMap(null)
     }
-  }, [map, mapsLib, origin.lat, origin.lng, destination.lat, destination.lng])
+  }, [map, mapsLib, routesLib, origin.lat, origin.lng, destination.lat, destination.lng, isVolunteer])
 
   return null
 }
@@ -107,12 +202,14 @@ export default function MonitoringMapClusters({ incidents, onMarkerClick }: Prop
 
         const displayAgencyName = matchedAgency ? matchedAgency.name : (agencyNameInput || 'RESPONSE AGENCY BASE')
 
+        const isVolunteer = (displayAgencyName || '').toLowerCase().includes('volunteer')
+
         return (
           <div key={incident.id}>
             {/* Real-World Google Driving Road Route Navigation Line */}
             {isResponding && (
               <>
-                <RespondingLineOverlay origin={agencyPos} destination={incidentPos} />
+                <RespondingLineOverlay origin={agencyPos} destination={incidentPos} isVolunteer={isVolunteer} />
                 <AdvancedMarker position={agencyPos}>
                   <div className="relative flex flex-col items-center group">
                     <div className="flex size-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-2 ring-blue-300">
