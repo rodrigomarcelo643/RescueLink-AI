@@ -28,50 +28,129 @@ export interface AIPatternSuggestion {
 }
 
 /**
- * Fetches all tracked Facebook posts & advisories directly from Supabase `fb_posts_tracking`
+ * Fetches all tracked Facebook posts & advisories directly from Supabase `fb_posts_tracking`, `public_advisories`, and `fb_posts`
  */
 export const getFbPostsTracking = async (): Promise<FbPostTrackingRecord[]> => {
+  const combinedMap = new Map<string, FbPostTrackingRecord>()
+
+  // 1. Load from localStorage cache
   try {
-    const { data, error } = await supabase
+    const cached: FbPostTrackingRecord[] = JSON.parse(localStorage.getItem('cached_fb_tracking') || '[]')
+    cached.forEach((item) => {
+      const key = item.id || item.title
+      if (key) combinedMap.set(key, item)
+    })
+  } catch {}
+
+  // 2. Query fb_posts_tracking
+  try {
+    const { data } = await supabase
       .from('fb_posts_tracking')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (!error && data && data.length > 0) {
-      return data
+    if (data && data.length > 0) {
+      data.forEach((row) => {
+        const key = row.id || row.title
+        if (key) {
+          combinedMap.set(key, {
+            id: row.id,
+            title: row.title,
+            body: row.body,
+            category: row.category || 'Disaster Broadcast',
+            severity: row.severity || 'high',
+            fb_post_id: row.fb_post_id ?? null,
+            synced_at: row.synced_at || row.created_at,
+            sync_status: row.sync_status || (row.fb_post_id ? 'synced' : 'queued'),
+            incident_pattern_summary: row.incident_pattern_summary ?? null,
+            created_at: row.created_at,
+          })
+        }
+      })
     }
-  } catch {
-    // fallback to public_advisories if fb_posts_tracking table is still initializing
+  } catch (err) {
+    console.warn('fb_posts_tracking query fallback:', err)
   }
 
-  // Fallback query from public_advisories
+  // 3. Query public_advisories
   try {
     const { data } = await supabase
       .from('public_advisories')
       .select('*')
       .order('created_at', { ascending: false })
 
-    return (data ?? []).map((row) => ({
-      id: row.id,
-      title: row.title,
-      body: row.body,
-      category: row.type || 'General',
-      severity: 'high',
-      fb_post_id: row.fb_post_id ?? null,
-      synced_at: row.created_at,
-      sync_status: row.synced_to_facebook ? 'synced' : 'queued',
-      created_at: row.created_at,
-    }))
-  } catch {
-    return []
-  }
+    if (data && data.length > 0) {
+      data.forEach((row) => {
+        const key = row.id || row.title
+        if (key && !combinedMap.has(key)) {
+          combinedMap.set(key, {
+            id: row.id,
+            title: row.title,
+            body: row.body,
+            category: row.type || 'General Advisory',
+            severity: 'high',
+            fb_post_id: row.fb_post_id ?? null,
+            synced_at: row.created_at,
+            sync_status: row.synced_to_facebook ? 'synced' : 'queued',
+            created_at: row.created_at,
+          })
+        }
+      })
+    }
+  } catch {}
+
+  // 4. Query fb_posts for automated broadcasts
+  try {
+    const { data } = await supabase
+      .from('fb_posts')
+      .select('*')
+      .ilike('page_name', '%RescueLink%')
+      .order('posted_at', { ascending: false })
+
+    if (data && data.length > 0) {
+      data.forEach((row) => {
+        const key = row.id || row.message.slice(0, 30)
+        if (key && !combinedMap.has(key)) {
+          combinedMap.set(key, {
+            id: row.id,
+            title: row.ai_summary || 'RescueLink Official Facebook Broadcast',
+            body: row.message,
+            category: 'Official Broadcast',
+            severity: row.severity || 'high',
+            fb_post_id: row.post_id ?? null,
+            synced_at: row.posted_at || row.created_at,
+            sync_status: 'synced',
+            created_at: row.posted_at || row.created_at,
+          })
+        }
+      })
+    }
+  } catch {}
+
+  const results = Array.from(combinedMap.values()).sort(
+    (a, b) => new Date(b.created_at || b.synced_at || 0).getTime() - new Date(a.created_at || a.synced_at || 0).getTime()
+  )
+
+  // Update local cache
+  try {
+    localStorage.setItem('cached_fb_tracking', JSON.stringify(results.slice(0, 30)))
+  } catch {}
+
+  return results
 }
 
 /**
- * Records published advisory directly into Supabase `fb_posts_tracking`
+ * Records published advisory directly into Supabase `fb_posts_tracking` and local cache
  */
 export const recordFbPostTracking = async (record: FbPostTrackingRecord) => {
   try {
+    // 1. Cache locally
+    try {
+      const cached: FbPostTrackingRecord[] = JSON.parse(localStorage.getItem('cached_fb_tracking') || '[]')
+      const next = [record, ...cached.filter((x) => x.title !== record.title)]
+      localStorage.setItem('cached_fb_tracking', JSON.stringify(next.slice(0, 30)))
+    } catch {}
+
     const payload: Record<string, any> = {
       title: record.title,
       body: record.body,
@@ -220,7 +299,26 @@ export const createAndPublishAdvisory = async (advisory: {
     incident_pattern_summary: advisory.patternSummary ?? null,
   })
 
-  // 3. Fallback insert to `public_advisories` table
+  // 3. Insert into `fb_posts` table so all users can find and view the automated post
+  try {
+    const postRecord = {
+      post_id: fbPostId || `auto_fb_${Date.now()}`,
+      fb_sender_id: fbPageId || 'lgu_official',
+      page_name: 'RescueLink Official (Automated Facebook Broadcast)',
+      message: `${advisory.title.toUpperCase()}\n\n${advisory.body}`,
+      permalink: fbPostId ? `https://facebook.com/${fbPostId}` : 'https://facebook.com',
+      posted_at: new Date().toISOString(),
+      ai_flagged: false,
+      ai_summary: advisory.patternSummary || advisory.title,
+      severity: (advisory.severity as any) || 'high',
+      converted_to_ticket: false,
+    }
+    await supabase.from('fb_posts').insert(postRecord)
+  } catch (fbPostErr) {
+    console.warn('fb_posts insert notice:', fbPostErr)
+  }
+
+  // 4. Fallback insert to `public_advisories` table
   try {
     const advPayload: Record<string, any> = {
       title: advisory.title,
