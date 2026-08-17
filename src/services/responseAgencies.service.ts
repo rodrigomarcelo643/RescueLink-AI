@@ -55,15 +55,15 @@ export const CEBU_RESPONSE_AGENCIES_SEED: ResponseAgency[] = [
   },
   {
     id: 'agency-cebu-004',
-    name: 'Emergency Rescue Unit Foundation (ERUF) - Banawa/Labangon Substation',
-    category: 'rescue',
+    name: 'Emergency Rescue Unit Foundation (ERUF) - Ambulance & Trauma Response',
+    category: 'medical',
     contacts: [
       { label: 'hotline', value: '161' },
       { label: 'mobile', value: '0917-320-1161' },
       { label: 'landline', value: '(032) 255-7000' },
     ],
     email: 'dispatch@eruf.org.ph',
-    address: 'Paseo Arcenas, Banawa-Labangon Boundary, Cebu City (Specialty: Technical Rescue & Trauma EMS)',
+    address: 'Paseo Arcenas, Banawa-Labangon Boundary, Cebu City (Specialty: Ambulance, Paramedics & Trauma EMS)',
     username: 'eruf_dispatch',
     password: 'Password@2026',
     latitude: 10.3125,

@@ -187,12 +187,16 @@ export default function AgencyDashboard() {
 
     // 2. Active responding/rescued/closed tickets for this station category
     const incCategory = (inc.disaster_type || '').toLowerCase()
+    const rawMsg = (inc.raw_message || '').toLowerCase()
+    const text = `${incCategory} ${rawMsg}`
     const stationCategory = (agency.category || '').toLowerCase()
+    const isAmbulance = stationCategory === 'medical' || (agency.name || '').toLowerCase().includes('ambulance') || (agency.name || '').toLowerCase().includes('eruf')
+
     const isCategoryMatch =
-      (stationCategory === 'fire' && incCategory.includes('fire')) ||
-      (stationCategory === 'medical' && (incCategory.includes('medical') || incCategory.includes('injury'))) ||
-      (stationCategory === 'police' && incCategory.includes('police')) ||
-      (stationCategory === 'rescue' && (incCategory.includes('flood') || incCategory.includes('landslide') || incCategory.includes('earthquake') || incCategory.includes('typhoon')))
+      (stationCategory === 'fire' && text.includes('fire')) ||
+      (isAmbulance && (text.includes('medical') || text.includes('injury') || text.includes('trauma') || text.includes('ambulance') || text.includes('sugat') || text.includes('stroke') || text.includes('cardiac'))) ||
+      (stationCategory === 'police' && text.includes('police')) ||
+      (!isAmbulance && stationCategory === 'rescue' && (text.includes('flood') || text.includes('landslide') || text.includes('earthquake') || text.includes('typhoon') || text.includes('collapse') || text.includes('baha')))
 
     if (isCategoryMatch && (inc.status === 'responding' || inc.status === 'rescued' || inc.status === 'closed')) {
       assignedIncidentsMap.set(inc.id, inc)

@@ -38,24 +38,46 @@ function getLocalCategoryForDisaster(incident?: Incident | string): ResponseAgen
   const rawMsg = typeof incident === 'object' && incident?.raw_message ? incident.raw_message : ''
   const text = (disasterType + ' ' + rawMsg).toLowerCase()
 
-  // 1. Earthquake / Collapse / Landslide / Flood -> 'rescue' (CCDRRMO Urban Search & Rescue)
-  if (text.includes('earthquake') || text.includes('lindol') || text.includes('aftershock') || text.includes('collapse') || text.includes('guho') || text.includes('landslide') || text.includes('flood') || text.includes('baha')) {
-    return 'rescue'
-  }
-
-  // 2. Fire / Explosion -> 'fire' (BFP Fire Suppression)
-  if (text.includes('fire') || text.includes('sunog') || text.includes('nasusunog')) {
-    return 'fire'
-  }
-
-  // 3. Medical / Injury -> 'medical' (ERUF / Red Cross)
-  if (text.includes('medical') || text.includes('sugat') || text.includes('injury') || text.includes('trauma') || text.includes('ambulance')) {
+  // 1. Medical / Injury / Trauma / Ambulance -> 'medical' (ERUF Ambulance, Red Cross Emergency Medical)
+  if (
+    text.includes('medical') ||
+    text.includes('sugat') ||
+    text.includes('injury') ||
+    text.includes('trauma') ||
+    text.includes('ambulance') ||
+    text.includes('bleeding') ||
+    text.includes('stroke') ||
+    text.includes('cardiac') ||
+    text.includes('unconscious') ||
+    text.includes('hospital')
+  ) {
     return 'medical'
   }
 
-  // 4. Police / Security -> 'police' (PNP Police)
-  if (text.includes('police') || text.includes('crime') || text.includes('gulo') || text.includes('security')) {
+  // 2. Fire / Explosion -> 'fire' (BFP Fire Suppression)
+  if (text.includes('fire') || text.includes('sunog') || text.includes('nasusunog') || text.includes('explosion') || text.includes('gas leak')) {
+    return 'fire'
+  }
+
+  // 3. Police / Security -> 'police' (PNP Police)
+  if (text.includes('police') || text.includes('crime') || text.includes('gulo') || text.includes('security') || text.includes('robbery')) {
     return 'police'
+  }
+
+  // 4. Earthquake / Collapse / Landslide / Flood -> 'rescue' (CCDRRMO Urban Search & Rescue)
+  if (
+    text.includes('earthquake') ||
+    text.includes('lindol') ||
+    text.includes('aftershock') ||
+    text.includes('collapse') ||
+    text.includes('guho') ||
+    text.includes('landslide') ||
+    text.includes('flood') ||
+    text.includes('baha') ||
+    text.includes('typhoon') ||
+    text.includes('drowning')
+  ) {
+    return 'rescue'
   }
 
   return 'rescue'
