@@ -14,7 +14,6 @@
 
 **An AI-Powered Disaster Intelligence & Emergency Response Platform**
 
-> *"Turning Disaster Data into Life-Saving Decisions."*
 
 *Built for Local Government Units, Responders, and Communities in the Philippines*
 
